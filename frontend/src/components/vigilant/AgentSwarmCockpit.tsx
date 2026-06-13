@@ -589,22 +589,7 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
           </button>
         </div>
 
-        {/* ④ NETWORK TOPOLOGY PREVIEW ───────────────────────── */}
-        <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Globe size={15} style={{ color: C.info }} />
-            <span style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.04em' }}>Network Topology Preview</span>
-            <div style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10, background: 'rgba(16,185,129,.12)', color: '#34d399', border: '1px solid rgba(16,185,129,.22)' }}>
-              Synthetic Simulation Mode
-            </div>
-          </div>
-          {/* Fixed height so graph is always visible */}
-          <div style={{ height: 340, position: 'relative' }}>
-            <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} />
-          </div>
-        </div>
-
-        {/* ⑤ MANUAL ALERT TEST ──────────────────────────────── */}
+        {/* ④ MANUAL ALERT TEST ──────────────────────────────── */}
         <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
           {/* Header — always shown */}
           <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: showManualTest ? `1px solid ${C.line}` : 'none' }}>
@@ -712,6 +697,21 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
               )}
             </div>
           )}
+        </div>
+
+        {/* ⑤ NETWORK TOPOLOGY PREVIEW ───────────────────────── */}
+        <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Globe size={15} style={{ color: C.info }} />
+            <span style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.04em' }}>Network Topology Preview</span>
+            <div style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10, background: 'rgba(16,185,129,.12)', color: '#34d399', border: '1px solid rgba(16,185,129,.22)' }}>
+              Synthetic Simulation Mode
+            </div>
+          </div>
+          {/* Fixed height so graph is always visible */}
+          <div style={{ height: 340, position: 'relative' }}>
+            <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} />
+          </div>
         </div>
 
       </div>

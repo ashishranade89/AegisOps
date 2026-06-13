@@ -35,6 +35,7 @@ export function IncidentChat({ runId }: IncidentChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastFailedMsg, setLastFailedMsg] = useState<string>('')
   // Track which assistant message indices have been "rejected" (thumbed down)
   const [rejectedIdx, setRejectedIdx] = useState<Set<number>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -70,8 +71,16 @@ export function IncidentChat({ runId }: IncidentChatProps) {
         isRetry: result.retry_mode,
       }])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to get response')
-      setMessages(newMessages) // rollback user message too
+      const raw = e instanceof Error ? e.message : 'Failed to get response'
+      // Strip JSON wrapper like {"detail":"LLM error: Connection error."}
+      let friendly = raw
+      try {
+        const parsed = JSON.parse(raw)
+        friendly = parsed.detail ?? parsed.message ?? parsed.error ?? raw
+      } catch { /* not JSON, use as-is */ }
+      setLastFailedMsg(msg)
+      setError(friendly)
+      setMessages(messages) // true rollback: remove the optimistic user message so Retry doesn't duplicate it
     } finally {
       setLoading(false)
     }
@@ -379,7 +388,7 @@ export function IncidentChat({ runId }: IncidentChatProps) {
                     <span>{error}</span>
                     <button
                       type="button"
-                      onClick={() => { setError(null); sendMessage(messages[messages.length - 1]?.content || '') }}
+                      onClick={() => { setError(null); sendMessage(lastFailedMsg) }}
                       style={{
                         background: 'none', border: 'none', cursor: 'pointer',
                         color: 'var(--negative)', padding: 0, flexShrink: 0,

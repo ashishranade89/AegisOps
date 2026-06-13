@@ -568,7 +568,7 @@ async def health():
     return {
         "status": "ok",
         "llm_configured": config.llm_configured(),
-        "auth_required": bool(config.incident_api_key),
+        "auth_required": False,
         "client_keys_allowed": config.allow_client_api_keys,
         "server_instance_id": SERVER_INSTANCE_ID,
     }

@@ -19,15 +19,6 @@ export interface HealthResponse {
   server_instance_id: string
 }
 
-function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const headers: Record<string, string> = { ...extra }
-  const apiKey = localStorage.getItem('incident_api_key')
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`
-  }
-  return headers
-}
-
 export async function getHealth(): Promise<HealthResponse> {
   const res = await fetch('/health')
   if (!res.ok) throw new Error(await res.text())
@@ -35,7 +26,7 @@ export async function getHealth(): Promise<HealthResponse> {
 }
 
 export async function listScenarios(): Promise<ScenarioInfo[]> {
-  const res = await fetch(`${API_BASE}/scenarios`, { headers: authHeaders() })
+  const res = await fetch(`${API_BASE}/scenarios`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -66,7 +57,7 @@ export async function startIncident(
 
   const res = await fetch(API_BASE, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -84,7 +75,7 @@ export async function chatAboutIncident(
 
   const res = await fetch(`/api/incident/${runId}/chat`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, history, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -101,7 +92,7 @@ export async function resumeIncident(
 
   const res = await fetch(`${API_BASE}/${runId}/resume`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approval, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -111,7 +102,6 @@ export async function resumeIncident(
 export async function stopIncident(runId: string): Promise<{ run_id: string; status: string }> {
   const res = await fetch(`${API_BASE}/${runId}/stop`, {
     method: 'POST',
-    headers: authHeaders(),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

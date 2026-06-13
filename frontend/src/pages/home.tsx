@@ -262,12 +262,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [reportLoadingId, setReportLoadingId] = useState<string | null>(null);
 
   const getAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
-    const headers: Record<string, string> = { ...extra };
-    const apiKey = localStorage.getItem('incident_api_key') || incidentApiKey;
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-    return headers;
+    return { ...extra };
   };
 
   async function loadHistoryData() {
@@ -308,7 +303,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     // Clear API keys from localStorage
     localStorage.removeItem('openrouter_key');
     localStorage.removeItem('tavily_key');
-    localStorage.removeItem('incident_api_key');
     localStorage.removeItem('llm_model');
     localStorage.removeItem('llm_provider');
     localStorage.removeItem('llm_base_url');
@@ -320,7 +314,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     // Reset React state
     setOpenrouterKey('');
     setTavilyKey('');
-    setIncidentApiKey('');
     setLlmModel('google/gemini-2.0-flash-001');
     setLlmProvider('openrouter');
     setLlmBaseUrl('http://localhost:11434/v1');
@@ -375,10 +368,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     () => localStorage.getItem('llm_model') || 'openai/gpt-4o'
   );
   const [clientKeysAllowed, setClientKeysAllowed] = useState<boolean>(true);
-  const [authRequired, setAuthRequired] = useState<boolean>(false);
-  const [incidentApiKey, setIncidentApiKey] = useState<string>(
-    () => localStorage.getItem('incident_api_key') || ''
-  );
   
   // Telemetry Ingestion Mode states
   const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload' | 'manual'>('standard');
@@ -428,8 +417,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   // so there are no silently shared credentials.
   const needsClientOpenRouterKey =
     llmProvider === 'openrouter' && !openrouterKey.trim();
-  const needsIncidentApiKey = authRequired && !incidentApiKey.trim();
-  const cockpitLocked = needsClientOpenRouterKey || needsIncidentApiKey;
+  const cockpitLocked = needsClientOpenRouterKey;
 
   // Health check + scenario load on mount
   useEffect(() => {
@@ -437,18 +425,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
       try {
         const health = await getHealth();
         setClientKeysAllowed(health.client_keys_allowed);
-        setAuthRequired(health.auth_required);
-
-        // Detect backend restart — clear stale localStorage keys so the gate re-appears
-        const storedInstanceId = localStorage.getItem('server_instance_id');
-        if (storedInstanceId && storedInstanceId !== health.server_instance_id) {
-          ['openrouter_key','tavily_key','incident_api_key','llm_model','llm_provider','llm_base_url'].forEach(k => localStorage.removeItem(k));
-          sessionStorage.removeItem('keys_submitted_session');
-          setOpenrouterKey(''); setTavilyKey(''); setIncidentApiKey('');
-          setLlmModel('google/gemini-2.0-flash-001'); setLlmProvider('openrouter'); setLlmBaseUrl('http://localhost:11434/v1');
-          setKeysSubmitted(false);
-        }
-        localStorage.setItem('server_instance_id', health.server_instance_id);
 
         const data = await listScenarios();
         setScenarios(data);
@@ -564,7 +540,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     localStorage.setItem('llm_model', llmModel);
     localStorage.setItem('llm_provider', llmProvider);
     localStorage.setItem('llm_base_url', llmBaseUrl);
-    localStorage.setItem('incident_api_key', incidentApiKey);
 
     const targetBaseUrl = llmProvider === 'local' ? llmBaseUrl : undefined;
     // Always send the user-supplied key so the backend uses it directly

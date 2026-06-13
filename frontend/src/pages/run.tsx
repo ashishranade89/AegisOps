@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { AgentFeed } from '@/components/agent-feed'
@@ -43,14 +43,6 @@ export function RunPage() {
 
   const [graphCollapsed, setGraphCollapsed] = useState(false)
   const [showVisuals, setShowVisuals] = useState(false)
-
-  // Auto-collapse topology graph and activity stream when run is completed/failed
-  useEffect(() => {
-    if (status === 'completed' || status === 'failed') {
-      setGraphCollapsed(true)
-      setChatOpen(false)
-    }
-  }, [status, setChatOpen])
 
   function downloadReport() {
     if (!report) return
@@ -123,10 +115,10 @@ export function RunPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 type="button"
-                onClick={() => { reset(); navigate('/') }}
+                onClick={() => { reset(); navigate('/history') }}
                 className="icon-btn"
-                title="Return to Simulate Outage"
-                aria-label="Return to Simulate Outage"
+                title="Return to Investigations"
+                aria-label="Return to Investigations"
               >
                 <ArrowLeft size={14} />
               </button>

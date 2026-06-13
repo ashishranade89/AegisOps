@@ -116,7 +116,7 @@ export async function testSlack(creds: {
     const res = await fetch('/api/test/slack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(creds),
+      body: JSON.stringify({ slack_bot_token: creds.slack_bot_token }),
     })
     if (!res.ok) return { ok: false, message: 'Could not reach server — try again' }
     return res.json()

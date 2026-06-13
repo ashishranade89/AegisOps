@@ -110,6 +110,16 @@ vendor_outage_investigator/
 │   │   └── incident_rag.py      # ChromaDB + JSON RAG tools
 │   ├── models/
 │   │   └── incident_state.py    # IncidentState TypedDict + Pydantic models
+│   ├── monitors/                # Log source monitor subsystem
+│   │   ├── __init__.py
+│   │   ├── base.py              # BaseMonitor ABC + classify() + _process()
+│   │   ├── encryption.py        # Fernet key management (data/monitor.key)
+│   │   ├── local_monitor.py     # Local file polling by byte offset
+│   │   ├── manager.py           # start/stop/add/remove asyncio task manager
+│   │   ├── persistence.py       # `monitors` table CRUD in runs.db
+│   │   ├── ssh_monitor.py       # asyncssh SFTP remote log polling
+│   │   ├── syslog_monitor.py    # UDP + TCP syslog push receiver
+│   │   └── trigger.py           # HTTP POST to /api/incident (avoids circular import)
 │   ├── simulators/
 │   │   └── payment_outage.py    # Built-in test scenarios
 │   ├── tools/
@@ -125,12 +135,12 @@ vendor_outage_investigator/
 ├── frontend/
 │   └── src/
 │       ├── components/          # React UI components
-│       ├── pages/               # home.tsx, run.tsx
+│       ├── pages/               # home.tsx, run.tsx, sources.tsx
 │       ├── stores/              # Zustand store
 │       ├── hooks/               # use-sse.ts SSE hook
 │       └── lib/                 # api.ts typed client + utilities
 │
-├── data/                        # SQLite databases (git-ignored)
+├── data/                        # SQLite databases + encryption key (git-ignored)
 ├── incident_memory_db/          # JSON RAG knowledge base files
 ├── docs/                        # All documentation
 ├── tests/                       # pytest suite
@@ -242,8 +252,11 @@ The main application server. Uses FastAPI's async lifespan to initialize the SQL
 
 1. Loads `.env` via `python-dotenv`
 2. Initializes `runs.db`
-3. Opens `AsyncSqliteSaver` connection to `checkpoints.db`
-4. Calls `init_incident_graph(checkpointer)` to compile the LangGraph
+3. Calls `init_monitors_db()` — creates `monitors` table if absent, runs `ALTER TABLE` migration for `auto_remediate` column
+4. Opens `AsyncSqliteSaver` connection to `checkpoints.db`
+5. Calls `init_incident_graph(checkpointer)` to compile the LangGraph
+6. Calls `await monitor_manager.start_all()` — spawns asyncio tasks for all enabled monitors
+7. On shutdown: `await monitor_manager.stop_all()` cancels all monitor tasks
 
 #### All API routes
 
@@ -263,6 +276,12 @@ The main application server. Uses FastAPI's async lifespan to initialize the SQL
 | `GET` | `/api/rag/entries` | Optional | List all knowledge base entries |
 | `DELETE` | `/api/rag/entries/{incident_id}` | Optional | Remove one incident from knowledge base |
 | `DELETE` | `/api/rag/clear` | Optional | Clear all knowledge base entries |
+| `GET` | `/api/monitors` | Optional | List all configured log source monitors |
+| `POST` | `/api/monitors` | Optional | Create a new monitor (credentials encrypted via Fernet) |
+| `PUT` | `/api/monitors/{mon_id}` | Optional | Update monitor config (partial update via `_ALLOWED_UPDATES`) |
+| `DELETE` | `/api/monitors/{mon_id}` | Optional | Delete a monitor and stop its task |
+| `POST` | `/api/monitors/{mon_id}/toggle` | Optional | Enable or disable a monitor |
+| `GET` | `/api/monitors/{mon_id}` | Optional | Get a single monitor (credentials stripped from response) |
 
 #### `run_graph_task` (background async coroutine)
 
@@ -272,8 +291,9 @@ The core function that runs the LangGraph pipeline in the background:
 2. **Fresh run**: builds `initial_state` dict → calls `graph.ainvoke(initial_state)`
 3. **Resume run**: calls `graph.aupdate_state(config, resume_state)` → `graph.ainvoke(None)`
 4. After invoke, checks `graph.aget_state().next` — if non-empty, graph paused for HITL
-5. **On HITL pause**: emits `approval_context` SSE event, sets status to `"paused"`
-6. **On completion**: saves report, emits `report` + `done` SSE events
+5. **Auto-Remediate path**: if `custom_telemetry.auto_remediate` is `True` (set by a monitor trigger), injects an `ApprovalDecision(status="approved", judge_name="System (Auto-Remediate Policy)")` via `aupdate_state` then immediately calls `ainvoke(None)` to continue — no UI pause
+6. **On HITL pause** (non-auto): emits `approval_context` SSE event, sets status to `"paused"`
+7. **On completion**: saves report, emits `report` + `done` SSE events
 
 #### Chat assistant (`/chat`)
 
@@ -309,6 +329,20 @@ Manages the `data/runs.db` SQLite database for run metadata.
 **Status values:** `pending → running → paused → resuming → completed | failed`
 
 Key functions: `init_runs_db()`, `persist_run(state)`
+
+---
+
+**File:** `backend/monitors/persistence.py`
+
+Manages the `monitors` table (also in `data/runs.db`) for log source configuration.
+
+**`monitors` table columns:** `id` (UUID), `name`, `type` (`ssh|syslog_udp|syslog_tcp|local`), `host`, `port`, `log_path`, `scan_interval`, `credentials_enc` (Fernet-encrypted JSON), `enabled`, `auto_remediate`, `byte_offset`, `created_at`
+
+Valid types: `_VALID_TYPES = {"ssh", "syslog_udp", "syslog_tcp", "local"}`
+
+Key functions: `init_monitors_db()`, `create_monitor()`, `list_monitors()`, `get_monitor()`, `update_monitor()`, `delete_monitor()`, `update_offset()`, `set_enabled()`
+
+**Credential security:** `credentials_enc` is never returned in API responses — `_sanitize()` in `app.py` strips it and substitutes `has_credentials: bool`.
 
 ---
 
@@ -696,6 +730,12 @@ Pre-built incident scenarios for demos and testing. Each scenario contains reali
 - Markdown report renderer when complete
 - Incident chat assistant
 
+**`frontend/src/pages/sources.tsx`** — Log Sources configuration page
+- Lists all configured monitors as cards with type badge, enabled/disabled status, and auto-remediate indicator
+- `MonitorModal` form for creating/editing: name, type selector (SSH/SFTP, Syslog UDP/TCP, Local File), host, port, log path, scan interval, credential fields (password or PEM key), Enabled toggle, Auto-Remediate toggle
+- Per-card Enable/Disable, Edit, and Delete actions
+- Auto-Remediate shown as amber `⚡ Auto-Remediate` badge vs green `✓ Manual Approval` when off
+
 ### 10.2 Components
 
 | Component | File | Purpose |
@@ -726,6 +766,8 @@ Stores: `runId`, `status`, `events` (SSE event list), `phase`, `report`, `approv
 **File:** `frontend/src/lib/api.ts`
 
 Typed `fetch()` wrappers: `startIncident`, `resumeIncident`, `getIncident`, `chatAboutIncident`, `getHistory`, `getRagEntries`. Auth header (`X-API-Key`) read from `localStorage.incident_api_key`.
+
+Monitor management functions: `listMonitors()`, `createMonitor(payload)`, `updateMonitor(id, payload)`, `deleteMonitor(id)`, `toggleMonitor(id, enabled)`. Types exported: `MonitorType`, `MonitorCredentials`, `Monitor`, `MonitorPayload`.
 
 ### 10.5 SSE Hook
 
@@ -834,6 +876,22 @@ def route_after_self_heal(state):
 
 The **SQLite checkpointer** (`AsyncSqliteSaver`) persists graph state between the pause and resume, so the run survives a server restart.
 
+### Auto-Remediate bypass
+
+When a Log Source Monitor triggers an incident with `auto_remediate=True` in `custom_telemetry`, `run_graph_task` detects this **after** the graph first pauses and immediately injects a pre-approved decision:
+
+```python
+auto_approval = ApprovalDecision(
+    status="approved",
+    judge_name="System (Auto-Remediate Policy)",
+    comments="Automatically approved by log-source monitor policy.",
+)
+await graph.aupdate_state(config, {"approval": auto_approval.model_dump()})
+result = await graph.ainvoke(None, config=config)
+```
+
+This keeps the HITL gate code path unchanged — the graph still compiles with `interrupt_before=["remediation"]` — but skips the human wait.
+
 ---
 
 ## 14. RAG Memory System
@@ -895,6 +953,29 @@ CREATE TABLE runs (
 
 Fully managed by `langgraph-checkpoint-sqlite`. Contains serialized graph state for each thread ID at each checkpoint. Enables HITL pause/resume across server restarts.
 
+### `monitors` table (also in `data/runs.db`)
+
+```sql
+CREATE TABLE monitors (
+    id               TEXT PRIMARY KEY,   -- UUID
+    name             TEXT NOT NULL,
+    type             TEXT NOT NULL,      -- ssh|syslog_udp|syslog_tcp|local
+    host             TEXT,
+    port             INTEGER,
+    log_path         TEXT,
+    scan_interval    INTEGER NOT NULL DEFAULT 60,
+    credentials_enc  TEXT,              -- Fernet-encrypted JSON blob
+    enabled          INTEGER NOT NULL DEFAULT 1,
+    auto_remediate   INTEGER NOT NULL DEFAULT 0,
+    byte_offset      INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT               -- ISO 8601
+);
+```
+
+### `data/monitor.key` — Fernet encryption key
+
+Auto-generated on first startup. Used by `backend/monitors/encryption.py` to encrypt/decrypt `credentials_enc`. Must be backed up alongside `runs.db`.
+
 ---
 
 ## 17. Environment Variables Reference
@@ -910,6 +991,7 @@ Fully managed by `langgraph-checkpoint-sqlite`. Contains serialized graph state 
 | `ALLOW_CLIENT_API_KEYS` | `false` | No | Allow browser to send API keys (dev only) |
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | No | LangGraph checkpoint SQLite path |
 | `RUNS_DB_PATH` | `data/runs.db` | No | Run metadata SQLite path |
+| `API_PORT` | `8004` | No | Port the backend listens on; monitors POST to this port for internal incident triggers |
 
 ---
 
@@ -933,7 +1015,9 @@ Fully managed by `langgraph-checkpoint-sqlite`. Contains serialized graph state 
 | `python-dotenv` | ≥1.2.1 | `.env` file loading |
 | `langgraph-checkpoint-sqlite` | ≥3.1.0 | SQLite state persistence |
 | `aiosqlite` | ≥0.22.1 | Async SQLite driver |
-| `httpx` | ≥0.28.1 | Async HTTP client (testing) |
+| `httpx` | ≥0.28.1 | Async HTTP client (testing + monitor trigger) |
+| `asyncssh` | ≥2.14.0 | Pure-asyncio SSH/SFTP client for remote log polling |
+| `cryptography` | ≥42.0.0 | Fernet symmetric encryption for stored credentials |
 | `pytest` | ≥9.0.3 | Test framework |
 | `pytest-asyncio` | ≥1.4.0 | Async test support |
 

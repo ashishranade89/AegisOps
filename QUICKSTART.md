@@ -51,43 +51,55 @@ cd frontend && npm run dev
 
 ## Architecture
 
+Two ingestion paths feed the same multi-agent pipeline:
+
 ```
-User uploads telemetry (logs + metrics)
-         │
-         ▼
-┌─────────────────┐
-│  Triage Agent   │  Classifies severity, identifies vendor
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  RAG Cache      │  Searches historical incident memory (ChromaDB / JSON)
-└────────┬────────┘
-    confidence ≥ 0.85 → skip to Remediation
-         │
-         ▼
-┌─────────────────┐
-│  RCA Agent      │  Routes: needs browser? web search? human escalation?
-└──┬───────┬──────┘
-   │       │
-   ▼       ▼
-Browser  Web Search   (fall back to mock data if Stagehand / Tavily unavailable)
-   └───────┘
-         │
-         ▼
-┌─────────────────┐
-│ Remediation     │  Generates containment action plan + Slack alert
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Reporter Agent  │  Writes full Markdown postmortem
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ RAG Storage     │  Saves resolved incident to vector memory for future runs
-└─────────────────┘
+Manual path                     Automated path
+──────────────────────          ──────────────────────────────────────────
+User uploads telemetry    OR    Log Source Monitor (SSH / Syslog / Local)
+(logs + metrics)                polls server logs continuously
+         │                                    │
+         └──────────────────┬─────────────────┘
+                            ▼
+                   POST /api/incident
+                            │
+                            ▼
+              ┌─────────────────────────┐
+              │      Triage Agent       │  Classifies severity, identifies vendor
+              └──────────┬──────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │       RAG Cache         │  Searches historical incident memory
+              └──────────┬──────────────┘
+                 confidence ≥ 0.85 → skip to Remediation
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │       RCA Agent         │  Routes: browser? web search? escalate?
+              └──┬───────────┬──────────┘
+                 │           │
+                 ▼           ▼
+            Browser     Web Search   (mock fallback if unavailable)
+                 └─────┬─────┘
+                       │
+                       ▼
+              ┌─────────────────────────┐
+              │     Remediation         │  Containment plan + Slack alert
+              │  ┌───────────────────┐  │
+              │  │ Human approval?   │  │  ← skipped if Auto-Remediate enabled
+              │  └───────────────────┘  │
+              └──────────┬──────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │    Reporter Agent       │  Full Markdown postmortem
+              └──────────┬──────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │     RAG Storage         │  Saves to vector memory for future runs
+              └─────────────────────────┘
 
 Self-Heal Agent intercepts failures at any node and reroutes automatically.
 ```

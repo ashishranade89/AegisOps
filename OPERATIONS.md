@@ -49,7 +49,15 @@ TAVILY_API_KEY=your_tavily_key  # Optional
 # Production Security
 INCIDENT_API_KEY=secure_random_string  # Required if ALLOW_CLIENT_API_KEYS=false
 ALLOW_CLIENT_API_KEYS=true             # Set to false for internal deployments
+
+# Log Source Monitor (optional)
+API_PORT=8004                          # Port the backend listens on; monitors use this for internal triggers
 ```
+
+> **Credential encryption key** — on first startup, `data/monitor.key` is
+> auto-generated and used to Fernet-encrypt SSH credentials stored in the DB.
+> Back this file up alongside `data/runs.db`; losing it means stored credentials
+> cannot be decrypted.
 
 ---
 
@@ -73,6 +81,30 @@ Alternatively, you can run the components separately:
 4.  **Approve Remediation**: If paused, review the findings and approve the remediation plan to proceed.
 5.  **View Report**: Once finished, download or view the Markdown postmortem.
 
+### Managing Log Sources
+
+AegisOps can continuously monitor remote servers and local log files and
+automatically open incident investigations when critical events are detected.
+
+1.  **Navigate to Log Sources**: Click **Log Sources** in the sidebar.
+2.  **Add a source**: Click **Add Source** and fill in the form:
+    - **Name** — a human-readable label (e.g. `prod-web-01`)
+    - **Type** — `SSH/SFTP`, `Syslog UDP`, `Syslog TCP`, or `Local File`
+    - **Host / Port** — target server address (SSH and Syslog types)
+    - **Log File Path** — remote or local path to the log file
+    - **Scan Interval** — how often to poll / flush (seconds)
+    - **Credentials** — SSH password or PEM private key (stored encrypted)
+    - **Auto-Remediate** — when enabled, the pipeline's human-approval gate
+      is bypassed and remediation runs automatically
+3.  **Toggle a source on/off**: Use the **Enable/Disable** toggle on the source
+    card without deleting the configuration.
+4.  **Edit or delete**: Use the **Edit** (pencil) and **Delete** (trash) icons
+    on each card.
+
+> **Auto-Remediate caution**: enable this only for low-risk environments or
+> when you trust the remediation playbook fully. For production, leave it off
+> so a human reviews the plan before execution.
+
 ---
 
 ## 🚢 Deployment
@@ -86,8 +118,9 @@ docker run -p 8004:8004 --env-file .env aegisops
 
 ### Production Considerations
 -   **Security**: Ensure `ALLOW_CLIENT_API_KEYS` is set to `false` and use a strong `INCIDENT_API_KEY`.
--   **Persistence**: Mount a volume to `/app/data` to ensure the SQLite run history and RAG memory are preserved between restarts.
+-   **Persistence**: Mount a volume to `/app/data` to ensure the SQLite run history, RAG memory, **and the monitor encryption key** (`data/monitor.key`) are preserved between restarts. Losing `monitor.key` invalidates all stored SSH credentials.
 -   **Resource Allocation**: The Browser Agent (Playwright) requires significant RAM and CPU. Ensure your host has at least 2GB of free RAM.
+-   **SSH Host Verification**: The SSH monitor currently accepts any host key (`known_hosts=None`). For production deployments, replace this with a populated `known_hosts` file in `backend/monitors/ssh_monitor.py` to prevent MITM attacks.
 
 ---
 

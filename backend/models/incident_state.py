@@ -76,7 +76,12 @@ class IncidentState(TypedDict):
     final_report: str | None
     hypotheses: Optional[List[dict]] # dict representation of Hypothesis
     recommendations: Optional[List[dict]] # dict representation of ActionItem
-    
+
+    # Integrations
+    jira_ticket_url: Optional[str]    # e.g. "https://company.atlassian.net/browse/OPS-42"
+    jira_ticket_id: Optional[str]     # e.g. "OPS-42"
+    slack_approval_ts: Optional[str]  # Slack message ts for threading + updates
+
     # Self-Healing & Exception tracking
     retry_count: int
     last_error: str | None

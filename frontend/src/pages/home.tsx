@@ -335,15 +335,15 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   // Telemetry Ingestion Mode states
   const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload'>('standard');
   const [selectedPreset, _setSelectedPreset] = useState<string>('stripe_gateway_error.json');
-  const [_uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedData, setUploadedData] = useState<any | null>(null);
-  const [_uploadError, setUploadError] = useState<string | null>(null);
+  const [_uploadedFile, _setUploadedFile] = useState<File | null>(null);
+  const [uploadedData, _setUploadedData] = useState<any | null>(null);
+  const [_uploadError, _setUploadError] = useState<string | null>(null);
   
   // Custom alert threshold states
   const [latencyThreshold, _setLatencyThreshold] = useState<number>(1800);
   const [errorThreshold, _setErrorThreshold] = useState<number>(15);
   const [_expandedEventIdx, setExpandedEventIdx] = useState<number | null>(null);
-  const [_copystate, setCopystate] = useState<boolean>(false);
+  const [_copystate, _setCopystate] = useState<boolean>(false);
   const [isMitigating, setIsMitigating] = useState<boolean>(false);
   const [_mitigationLog, setMitigationLog] = useState<string[]>([]);
   

@@ -4,6 +4,8 @@ import { ScenarioInfo } from '@/lib/api'
 import { IncidentState } from '@/types/vigilant'
 import { useIncidentStore, RunStatus } from '@/stores/incident-store'
 import RootCauseGraph from './RootCauseGraph'
+import { IntegrationAccordion } from './IntegrationAccordion'
+import { testSlack, testJira } from '../../lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,6 +264,30 @@ function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setO
           <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <ApiKeyInput label="OpenRouter Key" value={draftOrKey} onChange={setDraftOrKey} placeholder="sk-or-v1-..." hint="Required for cloud LLM inference via OpenRouter" isSaved={openrouterKey.trim().length > 0} />
             <ApiKeyInput label="Tavily Search Key" value={draftTavilyKey} onChange={setDraftTavilyKey} placeholder="tvly-..." hint="Powers real-time vendor status page search" isSaved={tavilyKey.trim().length > 0} />
+
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: -4 }}>
+              Integrations
+            </div>
+            <IntegrationAccordion
+              icon="🔔"
+              title="Slack"
+              fields={[
+                { label: 'Bot Token', storageKey: 'slack_bot_token', placeholder: 'xoxb-...', type: 'password', testRequired: true, showTestButton: true },
+                { label: 'Channel ID', storageKey: 'slack_channel_id', placeholder: 'C01AB2CD3EF', type: 'text', testRequired: true },
+              ]}
+              onTest={(values) => testSlack({ slack_bot_token: values.slack_bot_token, slack_channel_id: values.slack_channel_id })}
+            />
+            <IntegrationAccordion
+              icon="📋"
+              title="Jira"
+              fields={[
+                { label: 'Base URL', storageKey: 'jira_base_url', placeholder: 'https://company.atlassian.net', type: 'text', testRequired: true },
+                { label: 'Email', storageKey: 'jira_email', placeholder: 'you@company.com', type: 'text', testRequired: true },
+                { label: 'API Token', storageKey: 'jira_api_token', placeholder: 'your-jira-api-token', type: 'password', testRequired: true, showTestButton: true },
+                { label: 'Project Key', storageKey: 'jira_project_key', placeholder: 'OPS', type: 'text' },
+              ]}
+              onTest={(values) => testJira({ jira_base_url: values.jira_base_url, jira_email: values.jira_email, jira_api_token: values.jira_api_token })}
+            />
 
             <button
               onClick={handleSaveKeys}

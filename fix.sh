@@ -79,19 +79,21 @@ fi
 # ── 5. Port 8004 (backend) ────────────────────────────────────────────────────
 info "Checking port 8004 (backend)..."
 if lsof -i :8004 -sTCP:LISTEN &>/dev/null 2>&1; then
-  ok "Backend running on port 8004"
+  PID=$(lsof -t -i :8004 -sTCP:LISTEN)
+  warn "Port 8004 is occupied (PID: $PID)"
+  ask_fix "Kill process on 8004" "kill -9 $PID"
 else
-  warn "Nothing on port 8004 — backend is not running"
-  echo "  Start with:  uv run uvicorn backend.api.app:app --host 127.0.0.1 --port 8004 --reload"
+  ok "Port 8004 is free"
 fi
 
 # ── 6. Port 5176 (frontend) ───────────────────────────────────────────────────
 info "Checking port 5176 (Vite dev server)..."
 if lsof -i :5176 -sTCP:LISTEN &>/dev/null 2>&1; then
-  ok "Frontend running on port 5176"
+  PID=$(lsof -t -i :5176 -sTCP:LISTEN)
+  warn "Port 5176 is occupied (PID: $PID)"
+  ask_fix "Kill process on 5176" "kill -9 $PID"
 else
-  warn "Nothing on port 5176 — frontend is not running"
-  echo "  Start with:  cd frontend && npm run dev"
+  ok "Port 5176 is free"
 fi
 
 # ── 7. Playwright Chromium ────────────────────────────────────────────────────

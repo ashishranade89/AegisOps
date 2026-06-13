@@ -11,6 +11,7 @@ import { IncidentState } from "@/types/vigilant";
 import { listScenarios, startIncident, getHealth, ScenarioInfo } from "@/lib/api";
 import { useIncidentStore } from "@/stores/incident-store";
 import { AgentSwarmCockpit, TelemetryMode } from "@/components/vigilant/AgentSwarmCockpit";
+import { ApiKeyGate } from "@/components/vigilant/ApiKeyGate";
 
 // Map backend scenario types to descriptive cards
 const PRESETS: Record<string, { name: string; description: string; scenarioType: string; data: any }> = {
@@ -364,12 +365,19 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   // Immersive gateway scanning terminal simulation
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
   const [_consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  // True once the user has explicitly submitted keys via the gate
+  const [keysSubmitted, setKeysSubmitted] = useState<boolean>(
+    () => !!localStorage.getItem('openrouter_key') || localStorage.getItem('llm_provider') === 'local'
+  );
   
   const { runId, setRunId, setScenario } = useIncidentStore();
   const agentLogTimerRef = useRef<any>(null);
 
+  // Always require the user to supply their own OpenRouter key.
+  // Even if the server env has a key, we still enforce the user to enter one
+  // so there are no silently shared credentials.
   const needsClientOpenRouterKey =
-    llmProvider === 'openrouter' && !serverLlmConfigured && clientKeysAllowed && !openrouterKey.trim();
+    llmProvider === 'openrouter' && !openrouterKey.trim();
   const needsIncidentApiKey = authRequired && !incidentApiKey.trim();
   const cockpitLocked = needsClientOpenRouterKey || needsIncidentApiKey;
 
@@ -471,6 +479,11 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
   // Launch a real backend investigation and redirect to Live graph page
   const handleStart = async () => {
+    // Hard guard — never launch without a key regardless of server state
+    if (llmProvider === 'openrouter' && !openrouterKey.trim()) {
+      setError('OpenRouter API key is required. Enter your key in the API Keys tab before launching.');
+      return;
+    }
     if (telemetryMode === 'standard' && !selectedScenarioType) return;
     if (telemetryMode === 'upload' && !uploadedData) return;
     
@@ -500,8 +513,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     localStorage.setItem('incident_api_key', incidentApiKey);
 
     const targetBaseUrl = llmProvider === 'local' ? llmBaseUrl : undefined;
-    const needsClientKey = llmProvider === 'openrouter' && !serverLlmConfigured && clientKeysAllowed;
-    const targetKey = needsClientKey ? openrouterKey : undefined;
+    // Always send the user-supplied key so the backend uses it directly
+    const targetKey = llmProvider === 'openrouter' ? openrouterKey : undefined;
 
     let activeScenarioType = '';
     let activeCustomTelemetry: any = undefined;
@@ -708,7 +721,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               </div>
 
               {/* Supported Vendors Strip */}
-              <div className="mt-12 pt-6 border-t border-white/5 max-w-xl mx-auto">
+              <div className="mt-12 pt-6 border-t border-[var(--line)] max-w-xl mx-auto">
                 <span className="text-[10px] uppercase tracking-wider text-[var(--ink-4)] block mb-3 font-sans font-bold">Supported Integrations & Monitored Vendors</span>
                 <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-xs font-sans font-semibold text-[var(--ink-3)]">
                   <span>Stripe</span>
@@ -809,6 +822,22 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
           </div>
         ) : activeAppTab === "sandbox" ? (
+          cockpitLocked && !keysSubmitted ? (
+            // ── API Key Gate — shown before cockpit if no key configured ──
+            <ApiKeyGate
+              openrouterKey={openrouterKey}
+              setOpenrouterKey={setOpenrouterKey}
+              tavilyKey={tavilyKey}
+              setTavilyKey={setTavilyKey}
+              llmModel={llmModel}
+              setLlmModel={setLlmModel}
+              llmProvider={llmProvider}
+              setLlmProvider={setLlmProvider}
+              llmBaseUrl={llmBaseUrl}
+              setLlmBaseUrl={setLlmBaseUrl}
+              onSubmit={() => setKeysSubmitted(true)}
+            />
+          ) : (
           <AgentSwarmCockpit
             scenarios={scenarios}
             selectedScenarioType={selectedScenarioType}
@@ -822,7 +851,19 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             previewIncident={previewIncident}
             onApplyMitigation={handleApplyMitigation}
             isMitigating={isMitigating}
+            // Config props
+            openrouterKey={openrouterKey}
+            setOpenrouterKey={setOpenrouterKey}
+            tavilyKey={tavilyKey}
+            setTavilyKey={setTavilyKey}
+            llmModel={llmModel}
+            setLlmModel={setLlmModel}
+            llmProvider={llmProvider}
+            setLlmProvider={setLlmProvider}
+            llmBaseUrl={llmBaseUrl}
+            setLlmBaseUrl={setLlmBaseUrl}
           />
+          )
         ) : (
           
           /* VIEW 3: UNIFIED HISTORY & KNOWLEDGE BASE */

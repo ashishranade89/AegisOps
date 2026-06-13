@@ -112,6 +112,19 @@ print('  langchain:', langchain.__version__)
 print('  fastapi:  ', fastapi.__version__)
 " && ok "Core Python imports pass"
 
+# ── 9. Port check ─────────────────────────────────────────────────────────────
+info "Checking for conflicting processes on ports 8004 & 5176..."
+for port in 8004 5176; do
+  if lsof -i :$port -sTCP:LISTEN &>/dev/null 2>&1; then
+    PID=$(lsof -t -i :$port -sTCP:LISTEN)
+    warn "Port $port is occupied by PID $PID."
+    read -r -p "  Kill this process to free the port? [y/N] " ans
+    if [[ "$ans" =~ ^[Yy]$ ]]; then
+      kill -9 "$PID" && ok "Port $port cleared" || err "Failed to kill process on $port"
+    fi
+  fi
+done
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
@@ -124,5 +137,7 @@ echo -e "${GREEN}║   Option B — Browser (two terminals):                ║$
 echo -e "${GREEN}║     Terminal 1: uv run uvicorn backend.api.app:app --port 8004 --reload  ║${NC}"
 echo -e "${GREEN}║     Terminal 2: cd frontend && npm run dev           ║${NC}"
 echo -e "${GREEN}║     Then open: http://localhost:5176                 ║${NC}"
+echo -e "${GREEN}║                                                      ║${NC}"
+echo -e "${GREEN}║   Stuck? Ports busy? Run: ./fix.sh                   ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""

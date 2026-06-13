@@ -95,3 +95,5 @@ Write-Host "    Terminal 1:  uv run uvicorn backend.api.app:app --port 8004 --re
 Write-Host "    Terminal 2:  cd frontend && npm run dev"
 Write-Host "    Then open:   http://localhost:5176"
 Write-Host ""
+Write-Host "  Stuck? Ports busy? Run: ./fix.sh (WSL) or check processes manually."
+Write-Host ""

@@ -73,7 +73,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { chatOpen, setChatOpen } = useIncidentStore()
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light'
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark'
   })
 
   useEffect(() => {

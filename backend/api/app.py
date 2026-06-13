@@ -37,10 +37,15 @@ from backend.tools.slack_bot_tool import update_approval_message
 from backend.tools.jira_tool import update_jira_status, add_jira_comment
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Enable detailed httpx/httpcore logs to inspect outgoing request headers when debugging
+logging.getLogger("httpx").setLevel(logging.DEBUG)
+logging.getLogger("httpcore").setLevel(logging.DEBUG)
+logging.getLogger("backend.tools.llm_config").setLevel(logging.DEBUG)
 
 _checkpointer = None
 _running_tasks = {}

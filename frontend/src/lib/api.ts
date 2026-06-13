@@ -16,6 +16,7 @@ export interface HealthResponse {
   llm_configured: boolean
   auth_required: boolean
   client_keys_allowed: boolean
+  server_instance_id: string
 }
 
 function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
@@ -76,7 +77,7 @@ export async function chatAboutIncident(
   message: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
 ): Promise<{ reply: string; retry_mode?: boolean; retry_count?: number }> {
-  const openrouterApiKey = localStorage.getItem('openrouter_api_key') || undefined
+  const openrouterApiKey = localStorage.getItem('openrouter_key') || undefined
   const llmModel = localStorage.getItem('llm_model') || undefined
   const llmBaseUrl = localStorage.getItem('llm_base_url') || undefined
 

@@ -236,7 +236,11 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     return defaultTab === "history" ? "history" : "sandbox";
   });
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem("theme") !== "light";
+    const stored = localStorage.getItem("theme");
+    if (stored === "dark") return true;
+    if (stored === "light") return false;
+    // No stored preference — use system color scheme, default to dark
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
   });
 
   // Sync state when defaultTab updates
@@ -305,12 +309,22 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     localStorage.removeItem('openrouter_key');
     localStorage.removeItem('tavily_key');
     localStorage.removeItem('incident_api_key');
+    localStorage.removeItem('llm_model');
+    localStorage.removeItem('llm_provider');
+    localStorage.removeItem('llm_base_url');
     sessionStorage.removeItem('keys_submitted_session');
+
+    // Also clear theme so both browsers revert to dark
+    localStorage.removeItem('theme');
 
     // Reset React state
     setOpenrouterKey('');
     setTavilyKey('');
     setIncidentApiKey('');
+    setLlmModel('google/gemini-2.0-flash-001');
+    setLlmProvider('openrouter');
+    setLlmBaseUrl('http://localhost:11434/v1');
+    setIsDarkMode(true);
     setKeysSubmitted(false);
   }
 
@@ -354,11 +368,10 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [incidentApiKey, setIncidentApiKey] = useState<string>('');
   
   // Telemetry Ingestion Mode states
-  const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload'>('standard');
+  const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload' | 'manual'>('standard');
   const [selectedPreset, _setSelectedPreset] = useState<string>('stripe_gateway_error.json');
-  const [_uploadedFile, _setUploadedFile] = useState<File | null>(null);
-  const [uploadedData, _setUploadedData] = useState<any | null>(null);
-  const [_uploadError, _setUploadError] = useState<string | null>(null);
+  const [uploadedData, setUploadedData] = useState<any | null>(null);
+  const [manualDescription, setManualDescription] = useState<string>('');
   
   // Custom alert threshold states
   const [latencyThreshold, _setLatencyThreshold] = useState<number>(1800);
@@ -420,6 +433,17 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
         const health = await getHealth();
         setClientKeysAllowed(health.client_keys_allowed);
         setAuthRequired(health.auth_required);
+
+        // Detect backend restart — clear stale localStorage keys so the gate re-appears
+        const storedInstanceId = localStorage.getItem('server_instance_id');
+        if (storedInstanceId && storedInstanceId !== health.server_instance_id) {
+          ['openrouter_key','tavily_key','incident_api_key','llm_model','llm_provider','llm_base_url'].forEach(k => localStorage.removeItem(k));
+          sessionStorage.removeItem('keys_submitted_session');
+          setOpenrouterKey(''); setTavilyKey(''); setIncidentApiKey('');
+          setLlmModel('google/gemini-2.0-flash-001'); setLlmProvider('openrouter'); setLlmBaseUrl('http://localhost:11434/v1');
+          setKeysSubmitted(false);
+        }
+        localStorage.setItem('server_instance_id', health.server_instance_id);
 
         const data = await listScenarios();
         setScenarios(data);
@@ -510,6 +534,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     }
     if (telemetryMode === 'standard' && !selectedScenarioType) return;
     if (telemetryMode === 'upload' && !uploadedData) return;
+    if (telemetryMode === 'manual' && !manualDescription.trim()) return;
     
     // Play the immersive gateway trace modal animation
     setLoadingAnalysis(true);
@@ -552,6 +577,12 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     } else if (telemetryMode === 'upload') {
       activeScenarioType = 'custom_telemetry';
       activeCustomTelemetry = uploadedData;
+    } else if (telemetryMode === 'manual') {
+      activeScenarioType = 'custom_telemetry';
+      activeCustomTelemetry = {
+        raw_logs: [{ timestamp: new Date().toISOString(), level: "ERROR", service: "user-report", message: manualDescription.trim() }],
+        raw_metrics: {}
+      };
     }
 
     setLoading(true);
@@ -881,6 +912,9 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             telemetryMode={telemetryMode}
             onTelemetryModeChange={(m) => setTelemetryMode(m as TelemetryMode)}
             onLaunch={handleStart}
+            onUploadData={setUploadedData}
+            manualDescription={manualDescription}
+            setManualDescription={setManualDescription}
             loading={loading}
             loadingAnalysis={loadingAnalysis}
             cockpitLocked={cockpitLocked}
@@ -917,13 +951,20 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                     : 'RAG-indexed incident memories used to accelerate future investigations.'}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   type="button" onClick={loadHistoryData}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   <RefreshCw size={13} className={historyLoading ? 'spin-slow' : ''} />
                   Refresh
+                </button>
+                <button
+                  type="button" onClick={clearRag}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--negative)', background: 'var(--negative-tint)', color: 'var(--negative)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <Trash2 size={13} />
+                  Clear Cache &amp; API Keys
                 </button>
               </div>
             </div>
@@ -980,33 +1021,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 ).map(run => {
                   const isExpanded = expandedRunId === run.run_id;
                   const formattedDate = new Date(run.created_at).toLocaleString();
-                  const scenarioLower = run.scenario_type.toLowerCase();
-                  
-                  let vendorName = "Stripe";
-                  let rootCause = "Webhook API degradation";
-                  let duration = "14 min";
-                  let confidence = "98%";
-                  let resolution = "Vendor recovery";
-                  
-                  if (scenarioLower.includes("aws") || scenarioLower.includes("sts")) {
-                    vendorName = "AWS";
-                    rootCause = "STS Token validation fail";
-                    duration = "8 min";
-                    confidence = "92%";
-                    resolution = "Local STS fallback override";
-                  } else if (scenarioLower.includes("twilio")) {
-                    vendorName = "Twilio";
-                    rootCause = "SMS routing congestion";
-                    duration = "21 min";
-                    confidence = "88%";
-                    resolution = "Fallback carrier failover";
-                  } else if (scenarioLower.includes("cloudflare")) {
-                    vendorName = "Cloudflare";
-                    rootCause = "Edge network 522 errors";
-                    duration = "5 min";
-                    confidence = "95%";
-                    resolution = "DNS route override applied";
-                  }
 
                   return (
                     <div key={run.run_id} className="card animate-fadeIn" style={{ padding: 0, overflow: 'hidden' }}>
@@ -1035,27 +1049,19 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                             </span>
                           </div>
                           
-                          {/* Rich Metadata Columns */}
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-[10px] text-[var(--ink-3)] font-sans border-t border-white/5 pt-1.5">
+                          {/* Real Metadata Columns */}
+                          <div className="grid grid-cols-3 gap-3 mt-2 text-[10px] text-[var(--ink-3)] font-sans border-t border-white/5 pt-1.5">
                             <div>
-                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Vendor</span>
-                              <span className={"font-semibold text-[var(--ink-2)]"}>{vendorName}</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Scenario</span>
+                              <span className="font-semibold text-[var(--ink-2)]">{run.scenario_type.replace(/_/g, ' ')}</span>
                             </div>
                             <div>
-                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Root Cause</span>
-                              <span className={"font-semibold text-[var(--ink-2)]"}>{rootCause}</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Phase</span>
+                              <span className="font-semibold text-[var(--ink-2)]">{run.current_phase?.replace(/_/g, ' ') || '—'}</span>
                             </div>
                             <div>
-                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Duration</span>
-                              <span className={"font-semibold text-[var(--ink-2)]"}>{duration}</span>
-                            </div>
-                            <div>
-                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Confidence</span>
-                              <span className="font-bold text-teal-450">{confidence}</span>
-                            </div>
-                            <div>
-                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Resolution</span>
-                              <span className={"font-semibold text-[var(--ink-2)]"}>{resolution}</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Updated</span>
+                              <span className="font-semibold text-[var(--ink-2)]">{new Date(run.updated_at).toLocaleTimeString()}</span>
                             </div>
                           </div>
                           
@@ -1087,33 +1093,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       
                       {isExpanded && (
                         <div style={{ borderTop: '1px solid var(--line)', padding: '14px', background: 'var(--surface-2)' }}>
-                          {/* Styled RCA Investigation Timeline Checkpoints */}
-                          <div className="mb-4 bg-slate-950/40 p-3 rounded-lg border border-white/5">
-                            <h4 className="text-[10px] font-sans font-bold uppercase tracking-wider text-blue-500 mb-2">Investigation Process Timeline</h4>
-                            <div className="space-y-2 text-[10px] text-[var(--ink-3)] font-sans">
-                              <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="font-mono text-[var(--ink-4)]">10:02</span>
-                                <span>Telemetry Alerts detected anomaly in ingress connection pool rate.</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="font-mono text-[var(--ink-4)]">10:03</span>
-                                <span>Autonomous Swarm scanner initiated for {vendorName} status pages.</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="font-mono text-[var(--ink-4)]">10:05</span>
-                                <span>Correlated server logs and confirmed {rootCause} behavior.</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span className="font-mono text-[var(--ink-4)]">10:07</span>
-                                <span>Remediation hotfix verified. Outage resolved in {duration}.</span>
-                              </div>
-                            </div>
-                          </div>
-                          
                           {expandedRunReport ? (
                             <div>
                               <h4 className="text-[10px] font-sans font-bold uppercase tracking-wider text-[var(--ink-4)] mb-1">RCA Summary Report</h4>
@@ -1161,17 +1140,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
                 <div className="border-t border-white/5 pt-4 mt-2">
                   <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-[var(--ink-3)] mb-3">RAG Stored Incident Memories</h3>
-                  {historyRagEntries.length > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                      <button type="button" onClick={clearRag} style={{
-                        fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                        background: 'var(--negative-tint)', border: '1px solid var(--negative)',
-                        color: 'var(--negative)', cursor: 'pointer',
-                      }}>
-                        Clear Memory Cache
-                      </button>
-                    </div>
-                  )}
                   {historyRagEntries.filter(e => 
                     !historySearch || 
                     e.incident_id.toLowerCase().includes(historySearch.toLowerCase()) || 

@@ -586,7 +586,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                   Active
                 </span>
               </h1>
-              <span className="text-[9px] font-sans text-[var(--ink-3)] block mt-0.5">Autonomous Vendor Outage Investigator</span>
+              <span className="text-[9px] font-sans text-[var(--ink-3)] block mt-0.5">Autonomous AegisOps Orchestrator</span>
             </div>
           </div>
 

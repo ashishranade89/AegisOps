@@ -1,4 +1,4 @@
-# Vendor Outage Investigator — Quick Start Guide
+# AegisOps — Quick Start Guide
 
 Autonomous AI swarm that triages vendor outages, scrapes status pages, searches the web, and generates postmortem reports in under 60 seconds.
 
@@ -18,11 +18,8 @@ Autonomous AI swarm that triages vendor outages, scrapes status pages, searches 
 ## First-time Setup (60 seconds)
 
 ```bash
-# macOS / Linux
+# AegisOps setup
 ./setup.sh
-
-# Windows (PowerShell)
-.\setup.ps1
 ```
 
 The script will:
@@ -124,8 +121,8 @@ ALLOW_CLIENT_API_KEYS=false
 Run with Docker:
 
 ```bash
-docker build -t outage-investigator .
-docker run -p 8004:8004 --env-file .env -v $(pwd)/data:/app/data outage-investigator
+docker build -t aegisops .
+docker run -p 8004:8004 --env-file .env -v $(pwd)/data:/app/data aegisops
 ```
 
 Run tests: `uv run pytest tests/ -q`
@@ -137,9 +134,7 @@ Run tests: `uv run pytest tests/ -q`
 ## Something broke? Run the fixer
 
 ```bash
-./fix.sh          # macOS / Linux
-# or
-# .\fix.ps1       # Windows (TODO: create fix.ps1 equivalent of fix.sh)
+./fix.sh          # AegisOps repair tool
 ```
 
 It checks and auto-repairs:
@@ -155,7 +150,7 @@ It checks and auto-repairs:
 
 | Error | Cause | Fix |
 |---|---|---|
-| `Connectivity Alert: Outage Investigator API server is offline` | Backend not running | `uv run uvicorn api.app:app --port 8004 --reload` |
+| `Connectivity Alert: AegisOps API server is offline` | Backend not running | `uv run uvicorn api.app:app --port 8004 --reload` |
 | `Telemetry Cockpit Locked` | OpenRouter key not entered | Enter key in the right panel of the UI |
 | `Document Blocked` on file upload | Uploaded a non-JSON file | Only `.json` files with `raw_logs` or `raw_metrics` keys are accepted |
 | Electron window is blank | Vite not ready yet | Wait 3 seconds and press `Ctrl+R` |

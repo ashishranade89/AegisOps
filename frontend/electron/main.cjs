@@ -1,5 +1,5 @@
 /**
- * Electron main process — Vendor Outage Investigator desktop wrapper.
+ * Electron main process — AegisOps desktop wrapper.
  * Dev mode:  npm run electron:dev   (spawns uvicorn + Vite, then opens BrowserWindow)
  * Package:   npm run electron:build (stubbed, see electron-builder config in package.json)
  */
@@ -47,7 +47,7 @@ function createWindow() {
     height: 900,
     minWidth:  900,
     minHeight: 600,
-    title: 'Vendor Outage Investigator',
+    title: 'AegisOps',
     backgroundColor: '#0b1726',
     webPreferences: {
       preload:        path.join(__dirname, 'preload.cjs'),

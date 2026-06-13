@@ -1,7 +1,7 @@
 [project]
 name = "vendor_outage_investigator"
 version = "0.1.0"
-description = "Autonomous Third-Party Vendor Outage Investigator"
+description = "AegisOps — Autonomous Third-Party Outage Investigator"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

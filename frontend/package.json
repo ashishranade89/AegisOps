@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.hackathon.vendor-outage-investigator",
-    "productName": "Vendor Outage Investigator",
+    "productName": "AegisOps",
     "directories": { "output": "dist-electron" },
     "mac": { "target": "dmg" },
     "win": { "target": "nsis" },

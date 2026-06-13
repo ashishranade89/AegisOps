@@ -1,6 +1,6 @@
 # LangGraph Agent Operational Guidelines & Rules
 
-All AI agents in the Vendor Outage Investigator execution path must strictly follow the operational directives outlined below.
+All AI agents in the AegisOps execution path must strictly follow the operational directives outlined below.
 
 ## 1. User Interaction & Tone
 - **Addressing the Operator**: You MUST always address the user as "Admin". Use this name whenever mentioning the operator or generating postmortem incident reports (e.g., "Prepared for: Admin" or "Reported to: Admin").

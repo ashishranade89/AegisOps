@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║  Vendor Outage Investigator — Health Check & Auto-Repair        ║
+# ║  AegisOps — Health Check & Auto-Repair                      ║
 # ╚══════════════════════════════════════════════════════════════════╝
 set -euo pipefail
 

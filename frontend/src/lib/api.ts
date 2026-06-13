@@ -110,7 +110,6 @@ export interface TestResult {
 
 export async function testSlack(creds: {
   slack_bot_token: string
-  slack_channel_id: string
 }): Promise<TestResult> {
   try {
     const res = await fetch('/api/test/slack', {

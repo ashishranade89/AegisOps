@@ -182,7 +182,7 @@ export function ApiKeyGate({
                   { label: 'Bot Token', storageKey: 'slack_bot_token', placeholder: 'xoxb-...', type: 'password', testRequired: true, showTestButton: true },
                   { label: 'Channel ID', storageKey: 'slack_channel_id', placeholder: 'C01AB2CD3EF', type: 'text', testRequired: true },
                 ]}
-                onTest={(values) => testSlack({ slack_bot_token: values.slack_bot_token, slack_channel_id: values.slack_channel_id })}
+                onTest={(values) => testSlack({ slack_bot_token: values.slack_bot_token })}
               />
               <IntegrationAccordion
                 icon="📋"

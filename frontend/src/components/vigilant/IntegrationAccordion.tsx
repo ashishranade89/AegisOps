@@ -64,6 +64,7 @@ function FieldInput({
         />
         <button
           type="button"
+          aria-label={show ? 'Hide value' : 'Show value'}
           onClick={() => setShow(!show)}
           style={{
             position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',

@@ -147,7 +147,7 @@ async def test_test_slack_returns_error_on_invalid_token(client):
 
 
 @pytest.mark.asyncio
-async def test_test_slack_requires_both_fields(client):
+async def test_test_slack_requires_token(client):
     response = await client.post("/api/test/slack", json={})
     assert response.status_code == 422
 

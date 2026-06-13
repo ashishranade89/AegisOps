@@ -34,8 +34,7 @@ async def rag_search_node(state: IncidentState) -> IncidentState:
             "symptoms": symptoms,
             "vendor_name": vendor,
             "model_name": state.get("llm_model"),
-            "api_key": state.get("openrouter_api_key") or "",
-            "base_url": state.get("llm_base_url") or ""
+            "api_key": state.get("openrouter_api_key") or ""
         })
         result_data = json.loads(result_str)
         
@@ -83,8 +82,7 @@ async def store_incident_node(state: IncidentState) -> IncidentState:
             "resolution": ", ".join(state.get("remediation_steps", [])),
             "duration_minutes": 15,
             "model_name": state.get("llm_model"),
-            "api_key": state.get("openrouter_api_key") or "",
-            "base_url": state.get("llm_base_url") or ""
+            "api_key": state.get("openrouter_api_key") or ""
         })
         
         await send_sse_event(run_id, "tool_end", {"agent_name": "RAG Storage Node", "detail": "store_resolved_incident"})

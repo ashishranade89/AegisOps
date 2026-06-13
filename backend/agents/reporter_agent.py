@@ -8,7 +8,7 @@ import backend.utils.cost_tracker as cost_tracker
 async def reporter_node(state: IncidentState) -> IncidentState:
     run_id = state.get("incident_id", "CLI-RUN")
     # Reporter needs more tokens to generate a full postmortem
-    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), state.get("llm_base_url"), max_tokens=2000)
+    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), max_tokens=2000)
     
     await send_sse_event(run_id, "phase_change", {"phase": "reporting"})
     await send_sse_event(run_id, "agent_start", {"agent_name": "Incident Reporter"})

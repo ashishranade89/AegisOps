@@ -59,7 +59,6 @@ async def run_cli(scenario_type: str, model: str):
         "openrouter_api_key": config.openrouter_api_key or None,
         "tavily_api_key": config.tavily_api_key or None,
         "llm_model": model,
-        "llm_base_url": None,
         "agent_costs": {},
         "total_cost_usd": 0.0,
         "messages": [],

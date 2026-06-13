@@ -129,9 +129,6 @@ ALLOW_CLIENT_API_KEYS=true           # true = hackathon/dev mode; false = produc
 CHECKPOINT_DB_PATH=data/checkpoints.db   # LangGraph state checkpoints
 RUNS_DB_PATH=data/runs.db                # Run metadata and reports
 
-# ─── Local LLM (Ollama / LM Studio) ──────────────────────────────────────────
-# OPENROUTER_BASE_URL=http://localhost:11434/v1
-# OPENROUTER_MODEL=qwen2.5-coder:7b
 ```
 
 ### Choosing a model
@@ -161,6 +158,8 @@ Starts both the backend and frontend in a single terminal. Clears any stale port
 ```
 
 Then open [http://localhost:5176](http://localhost:5176).
+
+On Windows, use `.\start.ps1`. It follows the same startup flow, clears existing listeners before launch, and falls back to the next free backend port if `8004` stays blocked.
 
 ### Option A — Electron Desktop App (Recommended for demos)
 
@@ -407,7 +406,7 @@ It checks and auto-repairs:
 | `Document Blocked` on file upload | Non-JSON file uploaded | Only `.json` files with `raw_logs` or `raw_metrics` keys are accepted |
 | Electron window is blank | Vite not ready yet | Wait 3 seconds and press `Ctrl+R` |
 | `openai_api_key` validation error | Python / LangChain version mismatch | `uv sync` then restart the backend |
-| Port 8004 already in use | Another process using the port | `./start.sh` auto-clears it, or `lsof -i :8004` then `kill <PID>` |
+| Port 8004 already in use | Another process using the port | `./start.sh` / `.\start.ps1` auto-clear it, or `lsof -i :8004` then `kill <PID>` |
 | `RuntimeError: LangGraph not initialized` | Backend started without lifespan | Use `uvicorn` (not `python -m`), the lifespan handles init |
 
 ---

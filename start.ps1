@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 
 # Repair commands used by this launcher when startup state is broken:
-# - Clear stale listeners on 8004/5176 with Get-NetTCPConnection + Stop-Process
+# - Clear stale listeners on 8004/5176 with netstat + taskkill/Stop-Process
 # - Remove partial frontend installs with Remove-Item -Recurse -Force frontend\node_modules
 # - Rebuild frontend dependencies with npm install --legacy-peer-deps --include=dev
 # - Launch Vite directly from frontend\node_modules\vite\bin\vite.js with Node.js
@@ -16,33 +16,66 @@ function Write-Banner {
   Write-Host ""
 }
 
+function Get-PortListeners {
+  param(
+    [Parameter(Mandatory = $true)]
+    [int]$Port
+  )
+
+  $patterns = @(
+    "TCP\s+127\.0\.0\.1:$Port\s+0\.0\.0\.0:0\s+LISTENING\s+(?<pid>\d+)",
+    "TCP\s+\[::1\]:$Port\s+\[::\]:0\s+LISTENING\s+(?<pid>\d+)"
+  )
+
+  $listeners = New-Object System.Collections.Generic.List[int]
+  $netstat = & netstat -ano -p tcp 2>$null
+  foreach ($line in $netstat) {
+    foreach ($pattern in $patterns) {
+      if ($line -match $pattern) {
+        $listeners.Add([int]$Matches.pid)
+        break
+      }
+    }
+  }
+
+  return $listeners | Sort-Object -Unique
+}
+
 function Stop-PortListener {
   param(
     [Parameter(Mandatory = $true)]
     [int]$Port
   )
 
-  $pids = @(
-    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-      Select-Object -ExpandProperty OwningProcess -Unique
-  )
+  $pids = Get-PortListeners -Port $Port
 
   foreach ($listenerPid in $pids) {
     Write-Host "Stopping process on port $Port (PID $listenerPid)..." -ForegroundColor Yellow
-    try {
-      & taskkill /PID $listenerPid /T /F | Out-Null
-    } catch {
+    $process = Get-Process -Id $listenerPid -ErrorAction SilentlyContinue
+    if ($null -eq $process) {
+      Write-Host "Port $Port reports stale PID $listenerPid; no running process to stop." -ForegroundColor Yellow
+      continue
+    }
+
+    & taskkill /PID $listenerPid /T /F 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
       Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
     }
   }
 
-  $remaining = @(
-    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-      Select-Object -ExpandProperty OwningProcess -Unique
-  )
+  $remaining = Get-PortListeners -Port $Port
   foreach ($listenerPid in $remaining) {
+    $process = Get-Process -Id $listenerPid -ErrorAction SilentlyContinue
+    if ($null -eq $process) {
+      Write-Host "Port $Port still reports stale PID $listenerPid; ignoring it." -ForegroundColor Yellow
+      continue
+    }
+
     Write-Host "Force-clearing remaining listener on port $Port (PID $listenerPid)..." -ForegroundColor Yellow
-    & taskkill /PID $listenerPid /T /F | Out-Null
+    & taskkill /PID $listenerPid /T /F 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
+    }
   }
 
   Start-Sleep -Milliseconds 300
@@ -142,10 +175,29 @@ function Stop-ChildProcesses {
   }
 }
 
+function Test-ProcessRunning {
+  param(
+    [Parameter(Mandatory = $true)]
+    [System.Diagnostics.Process]$Process
+  )
+
+  try {
+    return -not $Process.HasExited
+  } catch {
+    return $false
+  }
+}
+
 Write-Banner
 
+Write-Host "Checking existing listeners..." -ForegroundColor Yellow
 Stop-PortListener -Port 8004
 Stop-PortListener -Port 5176
+
+# Clear poisoned Python environment variables inherited from the shell.
+# A stale PYTHONHOME/PYTHONPATH can make the venv launcher resolve to a missing interpreter.
+Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
 
 Write-Host "Starting backend -> http://localhost:8004" -ForegroundColor Green
 $backendLog = Join-Path $Root "backend.log"
@@ -186,7 +238,13 @@ Write-Host "Press Ctrl+C to stop both servers." -ForegroundColor Yellow
 Write-Host ""
 
 try {
-  Wait-Process -Id @($backend.Id, $frontend.Id)
+  while ($true) {
+    $active = @($backend, $frontend) | Where-Object { $_ -and (Test-ProcessRunning $_) }
+    if ($active.Count -eq 0) {
+      break
+    }
+    Start-Sleep -Seconds 2
+  }
 } finally {
   Stop-ChildProcesses $backend, $frontend
 }

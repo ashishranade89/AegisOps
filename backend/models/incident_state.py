@@ -103,7 +103,6 @@ class IncidentState(TypedDict):
     openrouter_api_key: str | None
     tavily_api_key: str | None
     llm_model: str | None
-    llm_base_url: str | None
 
     # Live cost tracking — populated by each agent after every LLM call
     agent_costs: dict | None        # {agent_name: {input_tokens, output_tokens, cost_usd}}

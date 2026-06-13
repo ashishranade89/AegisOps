@@ -8,7 +8,7 @@ import logging
 
 async def rca_node(state: IncidentState) -> IncidentState:
     run_id = state.get("incident_id", "CLI-RUN")
-    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), state.get("llm_base_url"))
+    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"))
     # Emit masked key for debugging authentication issues
     try:
         masked_key = (state.get("openrouter_api_key") or "")[:8]

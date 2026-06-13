@@ -115,3 +115,87 @@ export async function stopIncident(runId: string): Promise<{ run_id: string; sta
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+// ─── Log Source Monitors ───────────────────────────────────────────────────────
+
+export type MonitorType = 'local' | 'ssh' | 'syslog_udp' | 'syslog_tcp'
+
+export interface MonitorCredentials {
+  username?: string
+  password?: string
+  private_key?: string
+  passphrase?: string
+}
+
+export interface Monitor {
+  id: string
+  name: string
+  type: MonitorType
+  host?: string
+  port?: number
+  log_path?: string
+  scan_interval: number
+  enabled: boolean
+  auto_remediate: boolean
+  has_credentials: boolean
+  byte_offset: number
+  last_scanned_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MonitorPayload {
+  name: string
+  type: MonitorType
+  host?: string
+  port?: number
+  log_path?: string
+  scan_interval?: number
+  enabled?: boolean
+  auto_remediate?: boolean
+  credentials?: MonitorCredentials
+}
+
+export async function listMonitors(): Promise<Monitor[]> {
+  const res = await fetch('/api/monitors', { headers: authHeaders() })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createMonitor(payload: MonitorPayload): Promise<Monitor> {
+  const res = await fetch('/api/monitors', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateMonitor(id: string, payload: Partial<MonitorPayload>): Promise<Monitor> {
+  const res = await fetch(`/api/monitors/${id}`, {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteMonitor(id: string): Promise<void> {
+  const res = await fetch(`/api/monitors/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function toggleMonitor(id: string, enabled: boolean): Promise<Monitor> {
+  const res = await fetch(`/api/monitors/${id}/toggle`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ enabled }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}

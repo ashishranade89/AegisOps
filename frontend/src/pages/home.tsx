@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Shield, ArrowRight,
   Sun, Moon,
-  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2
+  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, ServerCog
 } from "lucide-react";
 import { NetworkParticles } from "@/components/vigilant/NetworkParticles";
 import { AIGlobeHero } from "@/components/vigilant/AIGlobeHero";
@@ -664,7 +664,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               { label: 'Agent Swarm',    action: () => { setView('app'); setActiveAppTab('sandbox'); },                active: view === 'app' && activeAppTab === 'sandbox', id: 'view-sandbox-dashboard-btn' },
               { label: 'Investigations', action: () => { setView('app'); setActiveAppTab('history'); setHistoryTab('runs'); }, active: view === 'app' && activeAppTab === 'history' && historyTab === 'runs' },
               { label: 'Knowledge Base', action: () => { setView('app'); setActiveAppTab('history'); setHistoryTab('rag'); },  active: view === 'app' && activeAppTab === 'history' && historyTab === 'rag' },
-            ] as const).map((item) => (
+            ] as {label:string; action:()=>void; active:boolean; id?:string}[]).map((item) => (
               <button
                 key={item.label}
                 id={(item as any).id}
@@ -682,6 +682,18 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 {item.label}
               </button>
             ))}
+            <button
+              onClick={() => navigate('/sources')}
+              style={{
+                padding: '7px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                fontSize: 12.5, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5,
+                background: 'transparent', color: 'var(--ink-3)', transition: 'all 150ms',
+              }}
+              title="Configure log source monitors"
+            >
+              <ServerCog style={{ width: 13, height: 13 }} />
+              Log Sources
+            </button>
             {runId && (
               <button
                 onClick={() => navigate(`/run/${runId}`)}

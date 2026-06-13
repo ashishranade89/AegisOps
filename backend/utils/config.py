@@ -38,10 +38,8 @@ class AppConfig:
     def slack_webhook_url(self) -> str:
         return os.getenv("SLACK_WEBHOOK_URL") or ""
 
-    @property
-    def incident_api_key(self) -> str:
-        """When set, all /api/incident/* routes require Authorization: Bearer <key>."""
-        return os.getenv("INCIDENT_API_KEY") or ""
+    # INCIDENT_API_KEY header auth is intentionally disabled for the local app.
+    # Keep /api/incident routes accessible without Authorization or X-API-Key.
 
     @property
     def allow_client_api_keys(self) -> bool:

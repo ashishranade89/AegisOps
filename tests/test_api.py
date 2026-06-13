@@ -27,16 +27,10 @@ async def test_start_incident_requires_scenario(client):
 
 
 @pytest.mark.asyncio
-async def test_auth_enforced_when_configured(client, monkeypatch):
+async def test_incident_routes_do_not_require_api_key_header(client, monkeypatch):
     monkeypatch.setenv("INCIDENT_API_KEY", "secret-test-key")
 
     response = await client.get("/api/incident/scenarios")
-    assert response.status_code == 401
-
-    response = await client.get(
-        "/api/incident/scenarios",
-        headers={"Authorization": "Bearer secret-test-key"},
-    )
     assert response.status_code == 200
 
 

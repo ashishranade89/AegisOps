@@ -3,6 +3,7 @@ $Root = $PSScriptRoot
 
 # Repair commands used by this launcher when startup state is broken:
 # - Clear stale listeners on 8004/5176 with Get-NetTCPConnection + Stop-Process
+# - If 8004 is blocked by an unkillable stale socket, start the backend on the next free port
 # - Remove partial frontend installs with Remove-Item -Recurse -Force frontend\node_modules
 # - Rebuild frontend dependencies with npm install --legacy-peer-deps --include=dev
 # - Launch Vite directly from frontend\node_modules\vite\bin\vite.js with Node.js
@@ -28,10 +29,15 @@ function Stop-PortListener {
   )
 
   foreach ($listenerPid in $pids) {
+    $listenerProcess = Get-Process -Id $listenerPid -ErrorAction SilentlyContinue
+    if (-not $listenerProcess) {
+      Write-Host "Port $Port reports stale PID $listenerPid; no running process to stop." -ForegroundColor Yellow
+      continue
+    }
+
     Write-Host "Stopping process on port $Port (PID $listenerPid)..." -ForegroundColor Yellow
-    try {
-      & taskkill /PID $listenerPid /T /F | Out-Null
-    } catch {
+    & taskkill /PID $listenerPid /T /F 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
       Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
     }
   }
@@ -41,8 +47,17 @@ function Stop-PortListener {
       Select-Object -ExpandProperty OwningProcess -Unique
   )
   foreach ($listenerPid in $remaining) {
+    $listenerProcess = Get-Process -Id $listenerPid -ErrorAction SilentlyContinue
+    if (-not $listenerProcess) {
+      Write-Host "Port $Port still reports stale PID $listenerPid; ignoring it." -ForegroundColor Yellow
+      continue
+    }
+
     Write-Host "Force-clearing remaining listener on port $Port (PID $listenerPid)..." -ForegroundColor Yellow
-    & taskkill /PID $listenerPid /T /F | Out-Null
+    & taskkill /PID $listenerPid /T /F 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
+    }
   }
 
   Start-Sleep -Milliseconds 300
@@ -119,11 +134,16 @@ function Test-PythonCanImport {
 }
 
 function Get-BackendStartCommand {
+  param(
+    [Parameter(Mandatory = $true)]
+    [int]$Port
+  )
+
   $venvPython = Join-Path $Root ".venv\Scripts\python.exe"
   if (Test-PythonCanImport -PythonExe $venvPython -ModuleName "uvicorn") {
     return @{
       FilePath     = $venvPython
-      ArgumentList = "-m uvicorn backend.api.app:app --port 8004 --reload"
+      ArgumentList = "-m uvicorn backend.api.app:app --host 127.0.0.1 --port $Port --reload"
       Mode         = "venv"
     }
   }
@@ -131,9 +151,48 @@ function Get-BackendStartCommand {
   $uvExe = Get-UvExe
   return @{
     FilePath     = $uvExe
-    ArgumentList = "run uvicorn backend.api.app:app --port 8004 --reload"
+    ArgumentList = "run uvicorn backend.api.app:app --host 127.0.0.1 --port $Port --reload"
     Mode         = "uv"
   }
+}
+
+function Test-PortAvailable {
+  param(
+    [Parameter(Mandatory = $true)]
+    [int]$Port
+  )
+
+  $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), $Port)
+  try {
+    $listener.Start()
+    return $true
+  } catch {
+    return $false
+  } finally {
+    $listener.Stop()
+  }
+}
+
+function Find-BackendPort {
+  param(
+    [Parameter(Mandatory = $true)]
+    [int]$PreferredPort
+  )
+
+  Stop-PortListener -Port $PreferredPort
+  if (Test-PortAvailable -Port $PreferredPort) {
+    return $PreferredPort
+  }
+
+  Write-Host "Port $PreferredPort is still unavailable; looking for another backend port." -ForegroundColor Yellow
+  foreach ($candidatePort in 8005..8015) {
+    if (Test-PortAvailable -Port $candidatePort) {
+      Write-Host "Using backend port $candidatePort instead of $PreferredPort." -ForegroundColor Yellow
+      return $candidatePort
+    }
+  }
+
+  throw "No available backend port found in range 8004-8015."
 }
 
 function Get-NodeExe {
@@ -208,13 +267,13 @@ function Test-ProcessRunning {
 
 Write-Banner
 
-Stop-PortListener -Port 8004
+$backendPort = Find-BackendPort -PreferredPort 8004
 Stop-PortListener -Port 5176
 
-Write-Host "Starting backend -> http://localhost:8004" -ForegroundColor Green
+Write-Host "Starting backend -> http://localhost:$backendPort" -ForegroundColor Green
 $backendLog = Join-Path $Root "backend.log"
 $backendErr = Join-Path $Root "backend.err.log"
-$backendCommand = Get-BackendStartCommand
+$backendCommand = Get-BackendStartCommand -Port $backendPort
 if ($backendCommand.Mode -eq "uv") {
   Write-Host "Backend venv is not healthy; falling back to uv run." -ForegroundColor Yellow
 }
@@ -224,7 +283,7 @@ Write-Host -NoNewline "Waiting for backend"
 $backendReady = $false
 for ($i = 1; $i -le 20; $i++) {
   try {
-    $response = Invoke-WebRequest -Uri "http://localhost:8004/health" -UseBasicParsing -TimeoutSec 2
+    $response = Invoke-WebRequest -Uri "http://localhost:$backendPort/health" -UseBasicParsing -TimeoutSec 2
     if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
       $backendReady = $true
       break
@@ -251,6 +310,7 @@ $frontendErr = Join-Path $Root "frontend.err.log"
 Ensure-FrontendDeps
 $nodeExe = Get-NodeExe
 $viteEntry = Join-Path $Root "frontend\node_modules\vite\bin\vite.js"
+$env:AEGISOPS_BACKEND_URL = "http://127.0.0.1:$backendPort"
 $frontend = Start-AppProcess -FilePath $nodeExe -ArgumentList "`"$viteEntry`" --port 5176 --host 127.0.0.1" -WorkingDirectory (Join-Path $Root "frontend") -StdOutLog $frontendLog -StdErrLog $frontendErr
 
 Write-Host ""

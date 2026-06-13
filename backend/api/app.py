@@ -192,6 +192,8 @@ async def start_incident(payload: dict):
 
     credentials = resolve_llm_credentials(payload)
     custom_telemetry = payload.get("custom_telemetry")
+    if scenario_type == "custom_telemetry" and not custom_telemetry:
+        raise HTTPException(status_code=400, detail="custom_telemetry body is required when scenario_type is 'custom_telemetry'")
 
     try:
         state = create_run(scenario_type)

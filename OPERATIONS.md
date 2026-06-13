@@ -47,7 +47,7 @@ OPENROUTER_MODEL=google/gemini-2.0-flash-exp  # Recommended default
 TAVILY_API_KEY=your_tavily_key  # Optional
 
 # Production Security
-INCIDENT_API_KEY=secure_random_string  # Required if ALLOW_CLIENT_API_KEYS=false
+# Incident API key headers are disabled for this app.
 ALLOW_CLIENT_API_KEYS=true             # Set to false for internal deployments
 ```
 
@@ -85,7 +85,7 @@ docker run -p 8004:8004 --env-file .env aegisops
 ```
 
 ### Production Considerations
--   **Security**: Ensure `ALLOW_CLIENT_API_KEYS` is set to `false` and use a strong `INCIDENT_API_KEY`.
+-   **Security**: Ensure `ALLOW_CLIENT_API_KEYS` is set to `false` for internal deployments.
 -   **Persistence**: Mount a volume to `/app/data` to ensure the SQLite run history and RAG memory are preserved between restarts.
 -   **Resource Allocation**: The Browser Agent (Playwright) requires significant RAM and CPU. Ensure your host has at least 2GB of free RAM.
 

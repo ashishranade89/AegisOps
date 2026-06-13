@@ -80,10 +80,8 @@ class AppConfig:
     def slack_bot_configured(self) -> bool:
         return bool(self.slack_bot_token and self.slack_channel_id)
 
-    @property
-    def incident_api_key(self) -> str:
-        """When set, all /api/incident/* routes require Authorization: Bearer <key>."""
-        return os.getenv("INCIDENT_API_KEY") or ""
+    # INCIDENT_API_KEY header auth is intentionally disabled for the local app.
+    # Keep /api/incident routes accessible without Authorization or X-API-Key.
 
     @property
     def allow_client_api_keys(self) -> bool:

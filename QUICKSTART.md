@@ -114,7 +114,6 @@ For deployment, configure server-side secrets in `.env` (see `.env.example`):
 
 ```env
 OPENROUTER_API_KEY=sk-or-...
-INCIDENT_API_KEY=your-secure-random-token
 ALLOW_CLIENT_API_KEYS=false
 ```
 

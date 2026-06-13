@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sse_starlette.sse import EventSourceResponse
 
 from backend.api.auth import require_api_auth
@@ -28,13 +28,33 @@ from backend.models.incident_state import ApprovalDecision
 from backend.simulators.payment_outage import list_payment_scenarios
 from backend.utils.config import get_config
 
+import base64
 import hashlib
 import hmac
+import httpx
 import json
 import time
 from backend.agents.slack_agent import send_slack_approval
 from backend.tools.slack_bot_tool import update_approval_message
 from backend.tools.jira_tool import update_jira_status, add_jira_comment
+
+# ─── Test-connection models ────────────────────────────────────────────────────
+
+class TestSlackRequest(BaseModel):
+    slack_bot_token: str
+    slack_channel_id: str
+
+
+class TestJiraRequest(BaseModel):
+    jira_base_url: str
+    jira_email: str
+    jira_api_token: str
+
+
+class TestConnectionResponse(BaseModel):
+    ok: bool
+    message: str
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -722,6 +742,70 @@ async def health():
         "client_keys_allowed": config.allow_client_api_keys,
         "server_instance_id": SERVER_INSTANCE_ID,
     }
+
+
+# ─── Integration test helpers (extracted for easy mocking in tests) ───────────
+
+async def _call_slack_auth_test(token: str) -> dict:
+    async with httpx.AsyncClient(timeout=10) as c:
+        resp = await c.post(
+            "https://slack.com/api/auth.test",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    return resp.json()
+
+
+async def _call_jira_myself(base_url: str, email: str, api_token: str) -> tuple[int, dict]:
+    credentials = base64.b64encode(f"{email}:{api_token}".encode()).decode()
+    url = base_url.rstrip("/") + "/rest/api/2/myself"
+    async with httpx.AsyncClient(timeout=10) as c:
+        resp = await c.get(
+            url,
+            headers={"Authorization": f"Basic {credentials}", "Accept": "application/json"},
+        )
+    try:
+        return resp.status_code, resp.json()
+    except Exception:
+        return resp.status_code, {}
+
+
+# ─── Test-connection endpoints ────────────────────────────────────────────────
+
+@app.post("/api/test/slack", response_model=TestConnectionResponse)
+async def test_slack_connection(req: TestSlackRequest) -> TestConnectionResponse:
+    try:
+        data = await _call_slack_auth_test(req.slack_bot_token)
+        if data.get("ok"):
+            team = data.get("team", "your workspace")
+            return TestConnectionResponse(ok=True, message=f'Connected to workspace "{team}"')
+        error = data.get("error", "unknown_error")
+        return TestConnectionResponse(ok=False, message=f"{error} — check your Slack Bot Token")
+    except httpx.TimeoutException:
+        return TestConnectionResponse(ok=False, message="Could not reach Slack — request timed out")
+    except Exception:
+        return TestConnectionResponse(ok=False, message="Unexpected error — try again")
+
+
+@app.post("/api/test/jira", response_model=TestConnectionResponse)
+async def test_jira_connection(req: TestJiraRequest) -> TestConnectionResponse:
+    try:
+        status_code, data = await _call_jira_myself(
+            req.jira_base_url, req.jira_email, req.jira_api_token
+        )
+        if status_code == 200:
+            name = data.get("displayName", "unknown")
+            return TestConnectionResponse(ok=True, message=f'Authenticated as "{name}"')
+        if status_code == 401:
+            return TestConnectionResponse(
+                ok=False, message="401 Unauthorized — check your Jira email and API token"
+            )
+        return TestConnectionResponse(
+            ok=False, message=f"Jira returned {status_code} — check your Base URL"
+        )
+    except httpx.TimeoutException:
+        return TestConnectionResponse(ok=False, message="Could not reach Jira — request timed out")
+    except Exception:
+        return TestConnectionResponse(ok=False, message="Unexpected error — try again")
 
 
 # Serve the compiled React frontend (production only — skipped if dist not built)

@@ -3,6 +3,7 @@ import hmac
 import json
 import time
 import urllib.parse
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -116,4 +117,92 @@ async def test_slack_action_valid_signature_unknown_run(client, monkeypatch):
     )
     # Run not found or not paused → returns 200 with empty body (Slack requires this)
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_test_slack_returns_ok_on_valid_token(client):
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"ok": True, "team": "Acme Corp"}
+
+    with patch("backend.api.app._call_slack_auth_test", new=AsyncMock(return_value=mock_resp.json())):
+        response = await client.post(
+            "/api/test/slack",
+            json={"slack_bot_token": "xoxb-valid", "slack_channel_id": "C123"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert "Acme Corp" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_slack_returns_error_on_invalid_token(client):
+    with patch("backend.api.app._call_slack_auth_test", new=AsyncMock(return_value={"ok": False, "error": "invalid_auth"})):
+        response = await client.post(
+            "/api/test/slack",
+            json={"slack_bot_token": "xoxb-bad", "slack_channel_id": "C123"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert "invalid_auth" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_slack_requires_both_fields(client):
+    response = await client.post("/api/test/slack", json={"slack_bot_token": "xoxb-x"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_test_jira_returns_ok_on_valid_creds(client):
+    with patch(
+        "backend.api.app._call_jira_myself",
+        new=AsyncMock(return_value=(200, {"displayName": "Jane Doe"})),
+    ):
+        response = await client.post(
+            "/api/test/jira",
+            json={
+                "jira_base_url": "https://acme.atlassian.net",
+                "jira_email": "jane@acme.com",
+                "jira_api_token": "token123",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert "Jane Doe" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_jira_returns_error_on_bad_creds(client):
+    with patch(
+        "backend.api.app._call_jira_myself",
+        new=AsyncMock(return_value=(401, {})),
+    ):
+        response = await client.post(
+            "/api/test/jira",
+            json={
+                "jira_base_url": "https://acme.atlassian.net",
+                "jira_email": "jane@acme.com",
+                "jira_api_token": "badtoken",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert "401" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_jira_requires_all_three_fields(client):
+    response = await client.post(
+        "/api/test/jira",
+        json={"jira_base_url": "https://acme.atlassian.net", "jira_email": "x@x.com"},
+    )
+    assert response.status_code == 422
 

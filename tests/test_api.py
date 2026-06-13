@@ -59,3 +59,86 @@ async def test_stop_incident_sets_failed_status(client, monkeypatch):
     assert get_resp.status_code == 200
     assert get_resp.json()["status"] == "failed"
 
+
+# ── Monitor CRUD ──────────────────────────────────────────────────────────────
+
+_MONITOR_PAYLOAD = {
+    "name": "Test Local Monitor",
+    "type": "local",
+    "log_path": "/tmp/test.log",
+    "enabled": False,
+}
+
+
+@pytest.mark.asyncio
+async def test_monitor_create_and_list(client):
+    resp = await client.post("/api/monitors", json=_MONITOR_PAYLOAD)
+    assert resp.status_code == 200
+    body = resp.json()
+    mid = body["id"]
+    assert body["name"] == _MONITOR_PAYLOAD["name"]
+    # credentials must not leak in response
+    assert "credentials_enc" not in body
+
+    list_resp = await client.get("/api/monitors")
+    assert list_resp.status_code == 200
+    assert any(m["id"] == mid for m in list_resp.json())
+
+    # cleanup
+    await client.delete(f"/api/monitors/{mid}")
+
+
+@pytest.mark.asyncio
+async def test_monitor_get(client):
+    resp = await client.post("/api/monitors", json=_MONITOR_PAYLOAD)
+    mid = resp.json()["id"]
+
+    get_resp = await client.get(f"/api/monitors/{mid}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["id"] == mid
+
+    await client.delete(f"/api/monitors/{mid}")
+
+
+@pytest.mark.asyncio
+async def test_monitor_update(client):
+    resp = await client.post("/api/monitors", json=_MONITOR_PAYLOAD)
+    mid = resp.json()["id"]
+
+    put_resp = await client.put(f"/api/monitors/{mid}", json={"name": "Renamed Monitor"})
+    assert put_resp.status_code == 200
+    assert put_resp.json()["name"] == "Renamed Monitor"
+
+    await client.delete(f"/api/monitors/{mid}")
+
+
+@pytest.mark.asyncio
+async def test_monitor_toggle(client):
+    resp = await client.post("/api/monitors", json=_MONITOR_PAYLOAD)
+    mid = resp.json()["id"]
+
+    toggle_resp = await client.post(f"/api/monitors/{mid}/toggle", json={"enabled": False})
+    assert toggle_resp.status_code == 200
+    assert not toggle_resp.json()["enabled"]
+
+    await client.delete(f"/api/monitors/{mid}")
+
+
+@pytest.mark.asyncio
+async def test_monitor_delete(client):
+    resp = await client.post("/api/monitors", json=_MONITOR_PAYLOAD)
+    mid = resp.json()["id"]
+
+    del_resp = await client.delete(f"/api/monitors/{mid}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["deleted"] == mid
+
+    get_resp = await client.get(f"/api/monitors/{mid}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_monitor_not_found_returns_404(client):
+    resp = await client.get("/api/monitors/nonexistent-monitor-id")
+    assert resp.status_code == 404
+

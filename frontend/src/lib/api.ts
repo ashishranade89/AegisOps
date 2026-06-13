@@ -94,10 +94,14 @@ export async function resumeIncident(
   runId: string,
   approval: { status: string; judge_name?: string; comments?: string }
 ): Promise<{ run_id: string; status: string }> {
+  const openrouterApiKey = localStorage.getItem('openrouter_key') || undefined
+  const llmModel = localStorage.getItem('llm_model') || undefined
+  const llmBaseUrl = localStorage.getItem('llm_base_url') || undefined
+
   const res = await fetch(`${API_BASE}/${runId}/resume`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ approval }),
+    body: JSON.stringify({ approval, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

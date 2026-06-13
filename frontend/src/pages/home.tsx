@@ -643,7 +643,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setView('landing')}>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-rose-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Shield className="w-4 h-4 text-white" />
             </div>

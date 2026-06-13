@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vendor Outage Investigator | Autonomous Incident Cockpit</title>
+    <meta name="description" content="State-of-the-art incident observability orchestrator resolving SaaS dependency outages in real time." />
+    <!-- Modern Typography: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        var div = document.createElement('div');
+        div.style.color = 'red';
+        div.style.padding = '20px';
+        div.style.background = 'black';
+        div.style.position = 'fixed';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.style.zIndex = '9999';
+        div.innerHTML = '<h1>Global JS Error</h1>' +
+          '<p>' + msg + '</p>' +
+          '<p>' + url + ':' + line + ':' + col + '</p>';
+        document.body.appendChild(div);
+      };
+      window.onunhandledrejection = function(event) {
+        var div = document.createElement('div');
+        div.style.color = 'orange';
+        div.style.padding = '20px';
+        div.style.background = 'black';
+        div.style.position = 'fixed';
+        div.style.bottom = '0';
+        div.style.left = '0';
+        div.style.zIndex = '9999';
+        div.innerHTML = '<h1>Unhandled Rejection</h1>' +
+          '<p>' + event.reason + '</p>';
+        document.body.appendChild(div);
+      };
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

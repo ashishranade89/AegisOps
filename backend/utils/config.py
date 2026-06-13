@@ -1,0 +1,77 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+ENV_PATH = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+class AppConfig:
+    @property
+    def openrouter_api_key(self) -> str:
+        return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+
+    @property
+    def openrouter_base_url(self) -> str:
+        return os.getenv("OPENROUTER_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://openrouter.ai/api/v1"
+
+    @property
+    def model_name(self) -> str:
+        return os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o"
+
+    @property
+    def tavily_api_key(self) -> str:
+        return os.getenv("TAVILY_API_KEY") or ""
+
+    @property
+    def model_api_key(self) -> str:
+        return os.getenv("MODEL_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+
+    @property
+    def slack_webhook_url(self) -> str:
+        return os.getenv("SLACK_WEBHOOK_URL") or ""
+
+    @property
+    def incident_api_key(self) -> str:
+        """When set, all /api/incident/* routes require Authorization: Bearer <key>."""
+        return os.getenv("INCIDENT_API_KEY") or ""
+
+    @property
+    def allow_client_api_keys(self) -> bool:
+        """Allow API keys in POST body (dev/hackathon only). Default: false."""
+        return _env_bool("ALLOW_CLIENT_API_KEYS", default=False)
+
+    @property
+    def checkpoint_db_path(self) -> Path:
+        raw = os.getenv("CHECKPOINT_DB_PATH") or "data/checkpoints.db"
+        path = Path(raw)
+        if not path.is_absolute():
+            path = Path(__file__).parent.parent.parent / path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def runs_db_path(self) -> Path:
+        raw = os.getenv("RUNS_DB_PATH") or "data/runs.db"
+        path = Path(raw)
+        if not path.is_absolute():
+            path = Path(__file__).parent.parent.parent / path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def llm_configured(self) -> bool:
+        return bool(self.openrouter_api_key) or "localhost" in self.openrouter_base_url or "127.0.0.1" in self.openrouter_base_url
+
+
+_config = AppConfig()
+
+
+def get_config() -> AppConfig:
+    return _config

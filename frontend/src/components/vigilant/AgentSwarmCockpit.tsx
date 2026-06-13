@@ -118,6 +118,7 @@ function deriveActiveStep(
   if (report) return 4
   if (status === 'running' || status === 'paused') return 3
   if (loadingAnalysis || status === 'pending') return 2
+  if (status === 'completed' || status === 'failed') return 3
   return 1
 }
 
@@ -220,6 +221,7 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
               <button
                 key={s.scenario_type}
                 onClick={() => onScenarioChange(s.scenario_type)}
+                aria-pressed={isSelected}
                 style={{ flex: '1 0 120px', background: isSelected ? 'rgba(29,78,216,.06)' : '#02040a', border: `1px solid ${isSelected ? '#1d4ed8' : '#1e293b'}`, borderRadius: 6, padding: '8px 10px', textAlign: 'left', cursor: 'pointer' }}
               >
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#cbd5e1' }}>{s.name}</div>
@@ -235,6 +237,7 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
               <button
                 key={m.value}
                 onClick={() => onTelemetryModeChange(m.value)}
+                aria-pressed={telemetryMode === m.value}
                 style={{ fontSize: 8.5, padding: '2px 8px', borderRadius: 10, border: `1px solid ${telemetryMode === m.value ? 'rgba(29,78,216,.25)' : '#1e293b'}`, background: telemetryMode === m.value ? 'rgba(29,78,216,.1)' : 'transparent', color: telemetryMode === m.value ? '#60a5fa' : '#64748b', cursor: 'pointer' }}
               >
                 {m.label}
@@ -244,6 +247,8 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
           <button
             onClick={onLaunch}
             disabled={loading || loadingAnalysis || cockpitLocked}
+            aria-disabled={cockpitLocked || loading || loadingAnalysis}
+            title={cockpitLocked ? 'Investigation already running' : undefined}
             style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 6, background: cockpitLocked ? '#0f172a' : '#1d4ed8', color: cockpitLocked ? '#334155' : '#fff', fontSize: 10, fontWeight: 700, border: 'none', cursor: cockpitLocked ? 'not-allowed' : 'pointer' }}
           >
             <Play size={10} />

@@ -586,7 +586,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                   Active
                 </span>
               </h1>
-              <span className="text-[9px] font-sans text-slate-400 block mt-0.5">Autonomous Vendor Outage Investigator</span>
+              <span className="text-[9px] font-sans text-[var(--ink-3)] block mt-0.5">Autonomous Vendor Outage Investigator</span>
             </div>
           </div>
 
@@ -694,14 +694,14 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 <button
                   id="deploy-sandbox-btn"
                   onClick={() => { setView("app"); setActiveAppTab("sandbox"); }}
-                  className="px-6 py-3 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs font-sans uppercase rounded-lg shadow-xl shadow-blue-500/10 flex items-center gap-2 transform active:scale-95 transition-all cursor-pointer"
+                  className="px-6 py-3 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs font-sans rounded-lg shadow-xl shadow-blue-500/10 flex items-center gap-2 transform active:scale-95 transition-all cursor-pointer"
                 >
                   Run Demo Incident
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("runs"); }}
-                  className="px-6 py-3 border font-bold text-xs font-sans uppercase rounded-lg transition-all cursor-pointer bg-[var(--surface)] hover:bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)]"
+                  className="px-6 py-3 border font-bold text-xs font-sans rounded-lg transition-all cursor-pointer bg-[var(--surface)] hover:bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)]"
                 >
                   Explore RCA Report
                 </button>
@@ -709,8 +709,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
               {/* Supported Vendors Strip */}
               <div className="mt-12 pt-6 border-t border-white/5 max-w-xl mx-auto">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 block mb-3 font-sans font-bold">Supported Integrations & Monitored Vendors</span>
-                <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-xs font-mono font-bold text-slate-400">
+                <span className="text-[10px] uppercase tracking-wider text-[var(--ink-4)] block mb-3 font-sans font-bold">Supported Integrations & Monitored Vendors</span>
+                <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-xs font-sans font-semibold text-[var(--ink-3)]">
                   <span>Stripe</span>
                   <span>AWS</span>
                   <span>Cloudflare</span>
@@ -730,7 +730,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             {/* AI Agent Cards */}
             <section id="autonomous-agents" className="mb-20 relative z-20">
               <div className="text-center mb-10">
-                <h3 className="text-xs font-mono tracking-widest text-blue-500 uppercase font-bold">Autonomous Agents Stack</h3>
+                <h3 className="text-xs font-sans tracking-widest text-blue-500 uppercase font-bold">Autonomous Agents Stack</h3>
                 <h4 className="text-xl font-bold mt-1 text-[var(--ink)]">Four specialized layers. Zero-touch operations.</h4>
               </div>
 
@@ -747,7 +747,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       Ingests logs, metrics, and alerts to pinpoint which dependency or vendor has failed.
                     </p>
                   </div>
-                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-sans border-[var(--line)]">
                     <span className="text-blue-500 font-bold">Scanning Uptime</span>
                     <span className="text-[var(--ink-4)]">Live alerts</span>
                   </div>
@@ -764,7 +764,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       Queries Tavily Search for public DownDetector spikes and API status indicators.
                     </p>
                   </div>
-                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-sans border-[var(--line)]">
                     <span className="text-amber-500 font-bold">Search API</span>
                     <span className="text-[var(--ink-4)]">Tavily engine</span>
                   </div>
@@ -781,7 +781,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       Launches headless Stagehand browsers to verify vendor status boards and login interfaces.
                     </p>
                   </div>
-                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-sans border-[var(--line)]">
                     <span className="text-purple-500 font-bold">Scraping Engine</span>
                     <span className="text-[var(--ink-4)]">Playwright</span>
                   </div>
@@ -798,7 +798,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       Synthesizes DNS fallback routes and webhook buffer policies into self-healing reports.
                     </p>
                   </div>
-                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-sans border-[var(--line)]">
                     <span className="text-emerald-500 font-bold">RAG Cache</span>
                     <span className="text-[var(--ink-4)]">Auto-mitigate</span>
                   </div>
@@ -833,7 +833,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <BookOpen size={16} className="text-blue-500" />
-                    <h2 className="text-sm font-bold font-mono tracking-tight" style={{ margin: 0 }}>History & Knowledge Base</h2>
+                    <h2 className="text-sm font-bold font-sans tracking-tight" style={{ margin: 0 }}>History & Knowledge Base</h2>
                   </div>
                   <p className="muted" style={{ fontSize: 11, marginTop: 4, color: 'var(--slate-400)' }}>
                     Review past incident runs and manage the RAG knowledge base
@@ -849,7 +849,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             {/* Search + Tab filters */}
             <div className="rounded-xl p-3 border flex items-center gap-4 transition-all bg-[var(--surface)] border-[var(--line)]">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                <Search size={13} className="text-slate-400" />
+                <Search size={13} className="text-[var(--ink-3)]" />
                 <input
                   type="text"
                   placeholder="Search runs or knowledge entries..."
@@ -931,11 +931,11 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                         onClick={() => toggleRunExpansion(run.run_id)}
                       >
                         {reportLoadingId === run.run_id ? (
-                          <Loader2 size={12} className="spin-slow text-slate-400" />
+                          <Loader2 size={12} className="spin-slow text-[var(--ink-3)]" />
                         ) : isExpanded ? (
-                          <ChevronDown size={13} className="text-slate-400" />
+                          <ChevronDown size={13} className="text-[var(--ink-3)]" />
                         ) : (
-                          <ChevronRight size={13} className="text-slate-400" />
+                          <ChevronRight size={13} className="text-[var(--ink-3)]" />
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -952,25 +952,25 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                           </div>
                           
                           {/* Rich Metadata Columns */}
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-[10px] text-slate-400 font-sans border-t border-white/5 pt-1.5">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-[10px] text-[var(--ink-3)] font-sans border-t border-white/5 pt-1.5">
                             <div>
-                              <span className="text-slate-500 block uppercase text-[8.5px]">Vendor</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Vendor</span>
                               <span className={"font-semibold text-[var(--ink-2)]"}>{vendorName}</span>
                             </div>
                             <div>
-                              <span className="text-slate-500 block uppercase text-[8.5px]">Root Cause</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Root Cause</span>
                               <span className={"font-semibold text-[var(--ink-2)]"}>{rootCause}</span>
                             </div>
                             <div>
-                              <span className="text-slate-500 block uppercase text-[8.5px]">Duration</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Duration</span>
                               <span className={"font-semibold text-[var(--ink-2)]"}>{duration}</span>
                             </div>
                             <div>
-                              <span className="text-slate-500 block uppercase text-[8.5px]">Confidence</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Confidence</span>
                               <span className="font-bold text-teal-450">{confidence}</span>
                             </div>
                             <div>
-                              <span className="text-slate-500 block uppercase text-[8.5px]">Resolution</span>
+                              <span className="text-[var(--ink-4)] block uppercase text-[8.5px]">Resolution</span>
                               <span className={"font-semibold text-[var(--ink-2)]"}>{resolution}</span>
                             </div>
                           </div>
@@ -1006,25 +1006,25 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                           {/* Styled RCA Investigation Timeline Checkpoints */}
                           <div className="mb-4 bg-slate-950/40 p-3 rounded-lg border border-white/5">
                             <h4 className="text-[10px] font-sans font-bold uppercase tracking-wider text-blue-500 mb-2">Investigation Process Timeline</h4>
-                            <div className="space-y-2 text-[10px] text-slate-400 font-sans">
+                            <div className="space-y-2 text-[10px] text-[var(--ink-3)] font-sans">
                               <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="font-mono text-slate-500">10:02</span>
+                                <span className="font-mono text-[var(--ink-4)]">10:02</span>
                                 <span>Telemetry Alerts detected anomaly in ingress connection pool rate.</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="font-mono text-slate-500">10:03</span>
+                                <span className="font-mono text-[var(--ink-4)]">10:03</span>
                                 <span>Autonomous Swarm scanner initiated for {vendorName} status pages.</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="font-mono text-slate-500">10:05</span>
+                                <span className="font-mono text-[var(--ink-4)]">10:05</span>
                                 <span>Correlated server logs and confirmed {rootCause} behavior.</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span className="font-mono text-slate-500">10:07</span>
+                                <span className="font-mono text-[var(--ink-4)]">10:07</span>
                                 <span>Remediation hotfix verified. Outage resolved in {duration}.</span>
                               </div>
                             </div>
@@ -1032,13 +1032,13 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                           
                           {expandedRunReport ? (
                             <div>
-                              <h4 className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-500 mb-1">RCA Summary Report</h4>
+                              <h4 className="text-[10px] font-sans font-bold uppercase tracking-wider text-[var(--ink-4)] mb-1">RCA Summary Report</h4>
                               <pre style={{ fontSize: 11, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, color: 'var(--slate-300)' }}>
                                 {expandedRunReport}
                               </pre>
                             </div>
                           ) : (
-                            <div className="text-[11px] text-slate-500 italic">Loading report contents...</div>
+                            <div className="text-[11px] text-[var(--ink-4)] italic">Loading report contents...</div>
                           )}
                         </div>
                       )}
@@ -1057,26 +1057,26 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                         <BookOpen className="w-4 h-4 text-blue-500" />
                         <h4 className="text-xs font-sans font-bold uppercase tracking-wider">Playbook: Stripe Connection pool overflow</h4>
                       </div>
-                      <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                      <p className="text-[11px] text-[var(--ink-3)] leading-relaxed font-sans">
                         Configures edge routing backoffs and connection pool validation whenever payment gateways return 504 Gateway errors.
                       </p>
-                      <span className="text-[9px] font-mono mt-2.5 block text-slate-500">TAGS: stripe · gateway · dns-failover</span>
+                      <span className="text-[9px] font-mono mt-2.5 block text-[var(--ink-4)]">TAGS: stripe · gateway · dns-failover</span>
                     </div>
                     <div className={"p-4 rounded-xl border transition-all bg-[var(--surface)] border-[var(--line)]"}>
                       <div className="flex items-center gap-2 mb-2">
                         <BookOpen className="w-4 h-4 text-amber-500" />
                         <h4 className="text-xs font-sans font-bold uppercase tracking-wider">Playbook: AWS STS token mismatch recovery</h4>
                       </div>
-                      <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                      <p className="text-[11px] text-[var(--ink-3)] leading-relaxed font-sans">
                         Mitigates IAM validation outages by caching STS temporary tokens locally and automatically failing over to backup IAM roles.
                       </p>
-                      <span className="text-[9px] font-mono mt-2.5 block text-slate-500">TAGS: aws · sts · token-cache</span>
+                      <span className="text-[9px] font-mono mt-2.5 block text-[var(--ink-4)]">TAGS: aws · sts · token-cache</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="border-t border-white/5 pt-4 mt-2">
-                  <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-slate-400 mb-3">RAG Stored Incident Memories</h3>
+                  <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-[var(--ink-3)] mb-3">RAG Stored Incident Memories</h3>
                   {historyRagEntries.length > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                       <button type="button" onClick={clearRag} style={{
@@ -1094,7 +1094,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                     (e.vendor || '').toLowerCase().includes(historySearch.toLowerCase()) || 
                     e.content.toLowerCase().includes(historySearch.toLowerCase())
                   ).length === 0 ? (
-                    <div className="card text-center p-8 text-xs text-slate-500">
+                    <div className="card text-center p-8 text-xs text-[var(--ink-4)]">
                       {historyRagEntries.length === 0
                         ? 'No active RAG memories ingested yet. Ingress memories will populate automatically as runs finish.'
                         : `No RAG entries found matching "${historySearch}"`}

@@ -1093,6 +1093,15 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                             View Live →
                           </Link>
                         )}
+                        {run.status === 'paused' && (
+                          <Link
+                            to={`/run/${run.run_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: 11, color: 'var(--warn)', fontWeight: 600, textDecoration: 'none', marginRight: 8 }}
+                          >
+                            Review & Approve →
+                          </Link>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); deleteRun(run.run_id); }}

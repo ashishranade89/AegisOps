@@ -26,10 +26,12 @@ function FieldInput({
   field,
   value,
   onChange,
+  id,
 }: {
   field: FieldConfig
   value: string
   onChange: (v: string) => void
+  id: string
 }) {
   const [show, setShow] = useState(false)
 
@@ -51,6 +53,7 @@ function FieldInput({
     return (
       <div style={{ position: 'relative', width: '100%' }}>
         <input
+          id={id}
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -76,6 +79,7 @@ function FieldInput({
 
   return (
     <input
+      id={id}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -141,6 +145,7 @@ export function IntegrationAccordion({ icon, title, fields, onTest }: Integratio
       {/* Accordion header */}
       <button
         type="button"
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
         style={{
           width: '100%',
@@ -184,10 +189,13 @@ export function IntegrationAccordion({ icon, title, fields, onTest }: Integratio
         }}>
           {fields.map((f) => (
             <div key={f.storageKey}>
-              <label style={{
-                fontSize: 12, fontWeight: 700, color: 'var(--ink-3)',
-                display: 'block', marginBottom: 5,
-              }}>
+              <label
+                htmlFor={f.storageKey}
+                style={{
+                  fontSize: 12, fontWeight: 700, color: 'var(--ink-3)',
+                  display: 'block', marginBottom: 5,
+                }}
+              >
                 {f.label}
               </label>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -196,6 +204,7 @@ export function IntegrationAccordion({ icon, title, fields, onTest }: Integratio
                     field={f}
                     value={values[f.storageKey] || ''}
                     onChange={(v) => handleChange(f.storageKey, v)}
+                    id={f.storageKey}
                   />
                 </div>
                 {f.showTestButton && onTest && (

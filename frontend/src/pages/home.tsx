@@ -835,7 +835,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                     <BookOpen size={16} className="text-blue-500" />
                     <h2 className="text-sm font-bold font-sans tracking-tight" style={{ margin: 0 }}>History & Knowledge Base</h2>
                   </div>
-                  <p className="muted" style={{ fontSize: 11, marginTop: 4, color: 'var(--slate-400)' }}>
+                  <p className="muted" style={{ fontSize: 11, marginTop: 4, color: 'var(--ink-3)' }}>
                     Review past incident runs and manage the RAG knowledge base
                   </p>
                 </div>
@@ -975,7 +975,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                             </div>
                           </div>
                           
-                          <div style={{ fontSize: 10, color: 'var(--slate-500)', marginTop: 4 }}>
+                          <div style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 4 }}>
                             Created: {formattedDate}
                           </div>
                         </div>
@@ -1033,7 +1033,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                           {expandedRunReport ? (
                             <div>
                               <h4 className="text-[10px] font-sans font-bold uppercase tracking-wider text-[var(--ink-4)] mb-1">RCA Summary Report</h4>
-                              <pre style={{ fontSize: 11, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, color: 'var(--slate-300)' }}>
+                              <pre style={{ fontSize: 11, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, color: 'var(--ink-2)' }}>
                                 {expandedRunReport}
                               </pre>
                             </div>
@@ -1110,14 +1110,14 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--slate-400)' }}>{entry.incident_id}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)' }}>{entry.incident_id}</span>
                             {entry.vendor && (
                               <span style={{ fontSize: 9.5, fontWeight: 600, padding: '1px 5px', borderRadius: 3, background: 'rgba(59,130,246,0.1)', color: 'var(--primary-accent)' }}>
                                 {entry.vendor}
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: 10.5, color: 'var(--slate-400)', marginTop: 2 }}>
+                          <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 2 }}>
                             Resolved {entry.resolved_at ? new Date(entry.resolved_at).toLocaleString() : '—'} · {entry.duration} min
                           </div>
                         </div>
@@ -1130,7 +1130,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                           <Trash2 size={12} className="hover:text-red-500 transition-colors" />
                         </button>
                       </div>
-                      <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, lineHeight: 1.5, color: 'var(--slate-300)' }}>
+                      <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, lineHeight: 1.5, color: 'var(--ink-2)' }}>
                         {entry.content}
                       </div>
                     </div>

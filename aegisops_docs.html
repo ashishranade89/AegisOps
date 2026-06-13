@@ -399,12 +399,21 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...</pre>
     </li>
     <li>
       <div>
-        <strong>Launch the application</strong> — choose one of three modes (see Running section below)
+        <strong>Launch the application</strong> — choose one of four modes (see Running section below)
       </div>
     </li>
   </ol>
 
+  <div class="callout" style="margin-top:1.2rem">
+    <strong>API Keys in the UI</strong> — The <strong>API Keys</strong> tab (cockpit sidebar) always shows blank fields for security. A <code>✓ Saved</code> badge appears when a key is already stored. Type a new value and click <strong>Save Keys</strong> to persist without relaunching. <strong>Clear Cache</strong> (Knowledge Base tab) wipes all stored keys and LLM settings from <code>localStorage</code>.
+  </div>
+
   <h3 style="margin-top:1.5rem">Running the Application</h3>
+  <div class="card" style="margin-bottom:.85rem;border-color:rgba(0,230,118,.3);background:rgba(0,230,118,.04)">
+    <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--green);margin-bottom:.4rem">QUICKEST — One command (starts backend + frontend, clears port conflicts)</div>
+    <pre style="margin:0">./start.sh
+# Open http://localhost:5176 — press Ctrl+C to stop both</pre>
+  </div>
   <div class="card" style="margin-bottom:.85rem">
     <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent);margin-bottom:.4rem">OPTION A — Electron Desktop (recommended for demos)</div>
     <pre style="margin:0">cd frontend
@@ -1051,12 +1060,13 @@ docker run -p 8004:8004 \
   <div class="tbl-wrap">
     <table>
       <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
-      <tr><td><code>Connectivity Alert: API server is offline</code></td><td>Backend not running</td><td><code>uv run uvicorn backend.api.app:app --port 8004 --reload</code></td></tr>
-      <tr><td><code>Telemetry Cockpit Locked</code></td><td>No OpenRouter key entered</td><td>Enter key in the UI right panel, or set in <code>.env</code></td></tr>
+      <tr><td><code>Connectivity Alert: API server is offline</code></td><td>Backend not running</td><td><code>./start.sh</code> or <code>uv run uvicorn backend.api.app:app --port 8004 --reload</code></td></tr>
+      <tr><td><code>Telemetry Cockpit Locked</code></td><td>No OpenRouter key entered</td><td>Open <strong>API Keys</strong> tab → type key → click <strong>Save Keys</strong>, or set in <code>.env</code></td></tr>
+      <tr><td>API Keys tab shows blank fields</td><td>By design — fields never pre-fill for security</td><td>The <code>✓ Saved</code> badge confirms a key is stored; type a new value and click <strong>Save Keys</strong></td></tr>
       <tr><td><code>Document Blocked</code> on file upload</td><td>Non-JSON file uploaded</td><td>Only <code>.json</code> files with <code>raw_logs</code> or <code>raw_metrics</code> keys accepted</td></tr>
       <tr><td>Electron window is blank</td><td>Vite not ready yet</td><td>Wait 3 seconds and press <kbd>Ctrl+R</kbd></td></tr>
       <tr><td><code>openai_api_key</code> validation error</td><td>Python / LangChain version mismatch</td><td><code>uv sync</code> then restart backend</td></tr>
-      <tr><td>Port 8004 already in use</td><td>Another process on port</td><td><code>lsof -i :8004</code> then <code>kill &lt;PID&gt;</code></td></tr>
+      <tr><td>Port 8004 / 5176 already in use</td><td>Stale process on port</td><td><code>./start.sh</code> clears automatically, or <code>./fix.sh</code></td></tr>
       <tr><td><code>RuntimeError: LangGraph not initialized</code></td><td>Backend started without lifespan</td><td>Use <code>uvicorn</code> (not <code>python -m</code>) — lifespan handles init</td></tr>
     </table>
   </div>
@@ -1064,7 +1074,7 @@ docker run -p 8004:8004 \
 
 <!-- ══════════════ FOOTER ══════════════ -->
 <footer>
-  Built for the <span>AI Accelerator Hackathon 2026</span> &nbsp;·&nbsp; Last updated June 13 2026
+  Built for the <span>AI Accelerator Hackathon 2026</span> &nbsp;·&nbsp; Last updated June 13 2026 &nbsp;·&nbsp; v2: start.sh · Save Keys · Clear Cache wipes all keys
 </footer>
 
 </body>

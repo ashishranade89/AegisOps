@@ -150,7 +150,17 @@ You can set the model globally in `.env` or change it per-run in the UI dropdown
 
 ## Running the Application
 
-There are three ways to run AegisOps.
+There are four ways to run AegisOps.
+
+### Quickest — `./start.sh` (one command)
+
+Starts both the backend and frontend in a single terminal. Clears any stale port conflicts automatically. Press `Ctrl+C` to stop both servers.
+
+```bash
+./start.sh
+```
+
+Then open [http://localhost:5176](http://localhost:5176).
 
 ### Option A — Electron Desktop App (Recommended for demos)
 
@@ -286,6 +296,7 @@ Before going to production, verify these settings:
 - **Real-time Observability**: 3D topology graph and live agent activity feed via Server-Sent Events (SSE).
 - **Cost Tracking**: Per-agent token usage and USD cost reported live in the UI.
 - **Persistent Memory**: SQLite checkpoints allow paused runs to survive server restarts.
+- **Secure API Key Management**: Keys are stored in `localStorage` only. The API Keys tab shows blank fields (never pre-fills) with a `✓ Saved` badge when a key exists. A **Save Keys** button persists changes without requiring a launch. **Clear Cache** wipes all stored keys and settings.
 
 ---
 
@@ -347,8 +358,9 @@ vendor_outage_investigator/
 ├── docs/                       # Architecture, API, and operations documentation
 ├── tests/                      # pytest test suite
 ├── Dockerfile
-├── setup.sh / setup.ps1
-├── fix.sh
+├── setup.sh / setup.ps1   # First-time setup (installs deps, checks ports)
+├── start.sh               # One-command launcher (backend + frontend)
+├── fix.sh                 # Auto-repair script (ports, venv, Playwright)
 ├── pyproject.toml
 └── .env.example
 ```
@@ -388,12 +400,14 @@ It checks and auto-repairs:
 
 | Error | Cause | Fix |
 |---|---|---|
-| `Connectivity Alert: API server is offline` | Backend not running | `uv run uvicorn backend.api.app:app --port 8004 --reload` |
-| `Telemetry Cockpit Locked` | No OpenRouter key entered | Enter key in the right panel of the UI, or set in `.env` |
+| `Connectivity Alert: API server is offline` | Backend not running | `./start.sh` or `uv run uvicorn backend.api.app:app --port 8004 --reload` |
+| `Telemetry Cockpit Locked` | No OpenRouter key entered | Enter key in **API Keys** tab → click **Save Keys**, or set in `.env` |
+| API Keys tab shows blank fields | By design — fields never pre-fill for security | The `✓ Saved` badge confirms a key is stored; type a new value and click **Save Keys** to update |
+| Clear Cache didn't remove my key settings | Older behavior | **Clear Cache** now wipes all keys and LLM settings from `localStorage` |
 | `Document Blocked` on file upload | Non-JSON file uploaded | Only `.json` files with `raw_logs` or `raw_metrics` keys are accepted |
 | Electron window is blank | Vite not ready yet | Wait 3 seconds and press `Ctrl+R` |
 | `openai_api_key` validation error | Python / LangChain version mismatch | `uv sync` then restart the backend |
-| Port 8004 already in use | Another process using the port | `lsof -i :8004` then `kill <PID>` |
+| Port 8004 already in use | Another process using the port | `./start.sh` auto-clears it, or `lsof -i :8004` then `kill <PID>` |
 | `RuntimeError: LangGraph not initialized` | Backend started without lifespan | Use `uvicorn` (not `python -m`), the lifespan handles init |
 
 ---

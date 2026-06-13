@@ -46,16 +46,10 @@ def get_llm(
     # Also print directly so it appears in stdout/stderr immediately during dev
     print(f"[DEBUG] get_llm: key={masked} model={model} base_url={target_base_url}")
 
-    # Inject placeholder keys for local endpoints (Ollama / LM Studio)
-    if not key and target_base_url and (
-        "localhost" in target_base_url or "127.0.0.1" in target_base_url
-    ):
-        key = "ollama" if "11434" in target_base_url else "lm-studio"
-
     return ChatOpenAI(
         model=model,
         base_url=target_base_url,
-        openai_api_key=key,
+        api_key=key,
         temperature=0,
         max_tokens=max_tokens,
     )

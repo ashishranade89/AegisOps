@@ -47,6 +47,8 @@ cd frontend && npm run dev
 # Open http://localhost:5176
 ```
 
+On Windows, `.\start.ps1` performs the same listener cleanup before launch and falls back to the next free backend port if `8004` is blocked.
+
 ---
 
 ## Architecture
@@ -154,7 +156,7 @@ It checks and auto-repairs:
 | `Document Blocked` on file upload | Uploaded a non-JSON file | Only `.json` files with `raw_logs` or `raw_metrics` keys are accepted |
 | Electron window is blank | Vite not ready yet | Wait 3 seconds and press `Ctrl+R` |
 | `openai_api_key` validation error | Python / LangChain version mismatch | `uv sync` then restart the backend |
-| Port 8004 already in use | Another process using the port | `lsof -i :8004` then `kill <PID>` |
+| Port 8004 already in use | Another process using the port | `lsof -i :8004` then `kill <PID>` or run `.\start.ps1` on Windows |
 
 ---
 

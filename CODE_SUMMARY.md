@@ -63,7 +63,7 @@ The system is built on **LangGraph** — a stateful graph execution engine — w
 | Layer | Technology |
 |---|---|
 | LLM Orchestration | LangGraph 0.0.60+, LangChain 0.1+ |
-| LLM Provider | OpenRouter (Gemini, GPT-4o, Claude, DeepSeek, Ollama, etc.) |
+| LLM Provider | OpenRouter (Gemini, GPT-4o, Claude, DeepSeek) |
 | Backend Framework | FastAPI 0.115+ with Uvicorn |
 | Real-time Streaming | Server-Sent Events (SSE) via `sse-starlette` |
 | Browser Automation | Playwright via `stagehand` |
@@ -345,7 +345,7 @@ Manages in-memory run state and Server-Sent Events delivery.
 
 1. If `ALLOW_CLIENT_API_KEYS=true` and the request body includes `openrouter_api_key` → use client-provided key
 2. Otherwise → use server-side `OPENROUTER_API_KEY` from `.env`
-3. Same logic applies for `tavily_api_key` and `llm_base_url`
+3. Same logic applies for `tavily_api_key`
 
 Ensures API keys never leave the server in production mode (`ALLOW_CLIENT_API_KEYS=false`).
 
@@ -898,7 +898,7 @@ Fully managed by `langgraph-checkpoint-sqlite`. Contains serialized graph state 
 |---|---|---|---|
 | `OPENROUTER_API_KEY` | — | Yes | OpenRouter API key |
 | `OPENROUTER_MODEL` | `google/gemini-2.5-flash` | No | Default LLM model |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | No | Override for local LLMs (Ollama, etc.) |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | No | OpenRouter API base URL |
 | `TAVILY_API_KEY` | — | No | Enables Tavily real-time web search |
 | `SLACK_WEBHOOK_URL` | — | No | Enables Slack incident notifications |
 | `ALLOW_CLIENT_API_KEYS` | `false` | No | Allow browser to send API keys (dev only) |

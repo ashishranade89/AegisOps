@@ -267,6 +267,11 @@ function Test-ProcessRunning {
 
 Write-Banner
 
+# Clear poisoned Python environment variables inherited from the shell.
+# A stale PYTHONHOME/PYTHONPATH can make the venv launcher resolve to a missing interpreter.
+Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+
 $backendPort = Find-BackendPort -PreferredPort 8004
 Stop-PortListener -Port 5176
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Key, Eye, EyeOff, ShieldCheck, ArrowRight, ExternalLink, Zap, Globe, Cpu, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Key, Eye, EyeOff, ShieldCheck, ArrowRight, ExternalLink, Zap, Cpu, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface ApiKeyGateProps {
   openrouterKey: string
@@ -8,10 +8,6 @@ interface ApiKeyGateProps {
   setTavilyKey: (v: string) => void
   llmModel: string
   setLlmModel: (v: string) => void
-  llmProvider: 'openrouter' | 'local'
-  setLlmProvider: (v: 'openrouter' | 'local') => void
-  llmBaseUrl: string
-  setLlmBaseUrl: (v: string) => void
   onSubmit: () => void
 }
 
@@ -64,8 +60,6 @@ export function ApiKeyGate({
   openrouterKey, setOpenrouterKey,
   tavilyKey, setTavilyKey,
   llmModel, setLlmModel,
-  llmProvider, setLlmProvider,
-  llmBaseUrl, setLlmBaseUrl,
   onSubmit,
 }: ApiKeyGateProps) {
   // Read directly from localStorage so the form is pre-filled even before
@@ -73,26 +67,16 @@ export function ApiKeyGate({
   const [localOrKey, setLocalOrKey] = useState(() => localStorage.getItem('openrouter_key') || openrouterKey || '')
   const [localTavilyKey, setLocalTavilyKey] = useState(() => localStorage.getItem('tavily_key') || tavilyKey || '')
   const [localModel, setLocalModel] = useState(() => localStorage.getItem('llm_model') || llmModel || 'google/gemini-2.0-flash-001')
-  const [localProvider, setLocalProvider] = useState<'openrouter' | 'local'>(() => (localStorage.getItem('llm_provider') as 'openrouter' | 'local') || llmProvider || 'openrouter')
-  const [localBaseUrl, setLocalBaseUrl] = useState(() => localStorage.getItem('llm_base_url') || llmBaseUrl || 'http://localhost:11434/v1')
-
-
-  const canSubmit = localProvider === 'local'
-    ? localBaseUrl.trim().length > 0
-    : localOrKey.trim().length > 0
+  const canSubmit = localOrKey.trim().length > 0
 
   const handleSave = () => {
     setOpenrouterKey(localOrKey)
     setTavilyKey(localTavilyKey)
     setLlmModel(localModel)
-    setLlmProvider(localProvider)
-    setLlmBaseUrl(localBaseUrl)
     // Persist to localStorage
     localStorage.setItem('openrouter_key', localOrKey)
     localStorage.setItem('tavily_key', localTavilyKey)
     localStorage.setItem('llm_model', localModel)
-    localStorage.setItem('llm_provider', localProvider)
-    localStorage.setItem('llm_base_url', localBaseUrl)
     onSubmit()
   }
 
@@ -136,84 +120,29 @@ export function ApiKeyGate({
           boxShadow: '0 8px 40px rgba(0,0,0,.25)',
         }}>
 
-          {/* Provider toggle */}
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)' }}>
-            <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
-              LLM Provider
-            </div>
-            <div style={{ display: 'flex', gap: 8, background: 'var(--bg)', padding: 4, borderRadius: 12, border: '1px solid var(--line)' }}>
-              {([
-                { val: 'openrouter', label: 'OpenRouter', icon: <Globe size={14} />, desc: 'Cloud AI (GPT-4o, Gemini, Claude…)' },
-                { val: 'local',      label: 'Local LLM', icon: <Cpu size={14} />,   desc: 'Ollama / LM Studio' },
-              ] as const).map(({ val, label, icon, desc }) => (
-                <button
-                  key={val}
-                  onClick={() => setLocalProvider(val)}
-                  style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 150ms', textAlign: 'left',
-                    background: localProvider === val
-                      ? (val === 'openrouter' ? 'rgba(249,115,22,.14)' : 'rgba(96,165,250,.14)')
-                      : 'transparent',
-                    boxShadow: localProvider === val ? `0 0 0 1.5px ${val === 'openrouter' ? 'rgba(249,115,22,.5)' : 'rgba(96,165,250,.5)'}` : 'none',
-                  }}
-                >
-                  <span style={{ color: localProvider === val ? (val === 'openrouter' ? '#fb923c' : '#93c5fd') : 'var(--ink-3)' }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: localProvider === val ? (val === 'openrouter' ? '#fb923c' : '#93c5fd') : 'var(--ink)' }}>{label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 1 }}>{desc}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* OpenRouter key section */}
-          {localProvider === 'openrouter' && (
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-                <label htmlFor="or-key-input" style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <span style={{ color: 'var(--negative)', fontSize: 16, lineHeight: 1 }}>*</span>
-                  OpenRouter API Key
-                  <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--negative-tint)', color: 'var(--negative)', padding: '2px 8px', borderRadius: 6 }}>Required</span>
-                </label>
-                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', fontWeight: 600 }}>
-                  Get key <ExternalLink size={11} />
-                </a>
-              </div>
-              <PasswordInput
-                id="or-key-input"
-                value={localOrKey}
-                onChange={setLocalOrKey}
-                placeholder="sk-or-v1-..."
-              />
-              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8, lineHeight: 1.5 }}>
-                Powers all AI agents — Triage, Root Cause, Remediation, and Reporting. Free tier available at openrouter.ai.
-              </div>
-            </div>
-          )}
-
-          {/* Local LLM base URL */}
-          {localProvider === 'local' && (
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)' }}>
-              <label htmlFor="local-url-input" style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+              <label htmlFor="or-key-input" style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{ color: 'var(--negative)', fontSize: 16, lineHeight: 1 }}>*</span>
-                Ollama / LM Studio Base URL
+                OpenRouter API Key
                 <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--negative-tint)', color: 'var(--negative)', padding: '2px 8px', borderRadius: 6 }}>Required</span>
               </label>
-              <input
-                id="local-url-input"
-                type="text"
-                value={localBaseUrl}
-                onChange={(e) => setLocalBaseUrl(e.target.value)}
-                placeholder="http://localhost:11434/v1"
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '13px 14px', fontSize: 14, color: 'var(--ink)', outline: 'none', fontFamily: 'monospace', boxSizing: 'border-box' }}
-              />
-              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>
-                Make sure your Ollama server is running locally before launching.
-              </div>
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', fontWeight: 600 }}>
+                Get key <ExternalLink size={11} />
+              </a>
             </div>
-          )}
+            <PasswordInput
+              id="or-key-input"
+              value={localOrKey}
+              onChange={setLocalOrKey}
+              placeholder="sk-or-v1-..."
+            />
+            <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8, lineHeight: 1.5 }}>
+              Powers all AI agents — Triage, Root Cause, Remediation, and Reporting. Free tier available at openrouter.ai.
+            </div>
+          </div>
 
           {/* Tavily — optional */}
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)' }}>
@@ -276,9 +205,7 @@ export function ApiKeyGate({
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, background: 'var(--warn-tint)', border: '1px solid rgba(245,158,11,.25)', marginBottom: 14 }}>
                 <AlertCircle size={15} style={{ color: 'var(--warn)', flexShrink: 0 }} />
                 <span style={{ fontSize: 13, color: 'var(--warn)', fontWeight: 600 }}>
-                  {localProvider === 'openrouter'
-                    ? 'Enter your OpenRouter API key above to continue.'
-                    : 'Enter your local LLM base URL above to continue.'}
+                  Enter your OpenRouter API key above to continue.
                 </span>
               </div>
             )}

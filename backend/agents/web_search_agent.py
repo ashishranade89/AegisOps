@@ -8,7 +8,7 @@ import backend.utils.cost_tracker as cost_tracker
 
 async def web_search_node(state: IncidentState) -> IncidentState:
     run_id = state.get("incident_id", "CLI-RUN")
-    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), state.get("llm_base_url"))
+    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"))
     tavily_key = state.get("tavily_api_key")
     
     await send_sse_event(run_id, "phase_change", {"phase": "root_cause_analysis"})

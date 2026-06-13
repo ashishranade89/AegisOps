@@ -20,7 +20,7 @@ class AppConfig:
 
     @property
     def openrouter_base_url(self) -> str:
-        return os.getenv("OPENROUTER_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://openrouter.ai/api/v1"
+        return os.getenv("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
 
     @property
     def model_name(self) -> str:
@@ -107,7 +107,7 @@ class AppConfig:
         return path
 
     def llm_configured(self) -> bool:
-        return bool(self.openrouter_api_key) or "localhost" in self.openrouter_base_url or "127.0.0.1" in self.openrouter_base_url
+        return bool(self.openrouter_api_key)
 
 
 _config = AppConfig()

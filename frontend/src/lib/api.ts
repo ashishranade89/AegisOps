@@ -37,7 +37,6 @@ export async function startIncident(
     openrouterApiKey?: string
     tavilyApiKey?: string
     llmModel?: string
-    llmBaseUrl?: string
     customTelemetry?: any
     clientKeysAllowed?: boolean
   } = {}
@@ -45,7 +44,6 @@ export async function startIncident(
   const body: Record<string, unknown> = {
     scenario_type: scenarioType,
     llm_model: options.llmModel,
-    llm_base_url: options.llmBaseUrl,
     custom_telemetry: options.customTelemetry,
   }
 
@@ -71,12 +69,11 @@ export async function chatAboutIncident(
 ): Promise<{ reply: string; retry_mode?: boolean; retry_count?: number }> {
   const openrouterApiKey = localStorage.getItem('openrouter_key') || undefined
   const llmModel = localStorage.getItem('llm_model') || undefined
-  const llmBaseUrl = localStorage.getItem('llm_base_url') || undefined
 
   const res = await fetch(`/api/incident/${runId}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, history, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
+    body: JSON.stringify({ message, history, openrouter_api_key: openrouterApiKey, llm_model: llmModel }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
@@ -88,12 +85,11 @@ export async function resumeIncident(
 ): Promise<{ run_id: string; status: string }> {
   const openrouterApiKey = localStorage.getItem('openrouter_key') || undefined
   const llmModel = localStorage.getItem('llm_model') || undefined
-  const llmBaseUrl = localStorage.getItem('llm_base_url') || undefined
 
   const res = await fetch(`${API_BASE}/${runId}/resume`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ approval, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
+    body: JSON.stringify({ approval, openrouter_api_key: openrouterApiKey, llm_model: llmModel }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

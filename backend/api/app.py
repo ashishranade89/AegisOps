@@ -151,7 +151,6 @@ async def run_graph_task(
                 "openrouter_api_key": credentials["openrouter_api_key"],
                 "tavily_api_key": credentials["tavily_api_key"],
                 "llm_model": credentials["llm_model"],
-                "llm_base_url": credentials["llm_base_url"],
                 "agent_costs": {},
                 "total_cost_usd": 0.0,
                 "messages": [],
@@ -352,7 +351,7 @@ async def get_cost(run_id: str):
 async def chat_about_incident(run_id: str, payload: dict):
     """
     AI assistant that answers questions about a specific incident in plain language.
-    Accepts: message, history[], openrouter_api_key, llm_model, llm_base_url
+    Accepts: message, history[], openrouter_api_key, llm_model
     """
     from backend.tools.llm_config import get_llm
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -365,7 +364,6 @@ async def chat_about_incident(run_id: str, payload: dict):
     llm = get_llm(
         credentials.get("openrouter_api_key"),
         credentials.get("llm_model"),
-        credentials.get("llm_base_url"),
         max_tokens=600,
     )
 

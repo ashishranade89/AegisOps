@@ -32,10 +32,6 @@ export interface AgentSwarmCockpitProps {
   setTavilyKey: (val: string) => void
   llmModel: string
   setLlmModel: (val: string) => void
-  llmProvider: 'openrouter' | 'local'
-  setLlmProvider: (val: 'openrouter' | 'local') => void
-  llmBaseUrl: string
-  setLlmBaseUrl: (val: string) => void
 }
 
 // ─── CSS variable palette ─────────────────────────────────────────────────────
@@ -204,15 +200,13 @@ function ApiKeyInput({ label, value, onChange, placeholder, hint, isSaved }: {
 
 // ─── LeftRail ─────────────────────────────────────────────────────────────────
 
-function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setOpenrouterKey, tavilyKey, setTavilyKey, llmModel, setLlmModel, llmProvider, setLlmProvider, llmBaseUrl, setLlmBaseUrl }: {
+function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setOpenrouterKey, tavilyKey, setTavilyKey, llmModel, setLlmModel }: {
   activeStep: number
   vendorHealth: IncidentState['vendorHealth']
   cockpitLocked: boolean
   openrouterKey: string; setOpenrouterKey: (v: string) => void
   tavilyKey: string; setTavilyKey: (v: string) => void
   llmModel: string; setLlmModel: (v: string) => void
-  llmProvider: 'openrouter' | 'local'; setLlmProvider: (v: 'openrouter' | 'local') => void
-  llmBaseUrl: string; setLlmBaseUrl: (v: string) => void
 }) {
   // Auto-jump to keys tab when no key is configured so user knows where to go
   const [tab, setTab] = useState<'steps' | 'keys' | 'engine'>(() => cockpitLocked ? 'keys' : 'steps')
@@ -231,8 +225,6 @@ function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setO
     localStorage.setItem('openrouter_key', newOrKey)
     localStorage.setItem('tavily_key', newTavilyKey)
     localStorage.setItem('llm_model', llmModel)
-    localStorage.setItem('llm_provider', llmProvider)
-    localStorage.setItem('llm_base_url', llmBaseUrl)
     setKeysSaved(true)
     setTimeout(() => setKeysSaved(false), 2000)
   }
@@ -268,33 +260,8 @@ function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setO
 
         {tab === 'keys' && (
           <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Provider selector */}
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.ink3, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Provider</div>
-              <div style={{ display: 'flex', gap: 6, background: C.bg, padding: 4, borderRadius: 10, border: `1px solid ${C.line}` }}>
-                {(['openrouter', 'local'] as const).map((p) => (
-                  <button key={p} onClick={() => setLlmProvider(p)} style={{
-                    flex: 1, padding: '8px 6px', borderRadius: 8, border: 'none', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', transition: 'all 120ms',
-                    background: llmProvider === p ? (p === 'openrouter' ? 'rgba(249,115,22,.2)' : 'rgba(96,165,250,.2)') : 'transparent',
-                    color: llmProvider === p ? (p === 'openrouter' ? '#fb923c' : '#93c5fd') : C.ink3,
-                    boxShadow: llmProvider === p ? '0 2px 8px rgba(0,0,0,.15)' : 'none',
-                  }}>
-                    {p === 'openrouter' ? 'OpenRouter' : 'Local (Ollama)'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <ApiKeyInput label="OpenRouter Key" value={draftOrKey} onChange={setDraftOrKey} placeholder="sk-or-v1-..." hint="Required for cloud LLM inference via OpenRouter" isSaved={openrouterKey.trim().length > 0} />
             <ApiKeyInput label="Tavily Search Key" value={draftTavilyKey} onChange={setDraftTavilyKey} placeholder="tvly-..." hint="Powers real-time vendor status page search" isSaved={tavilyKey.trim().length > 0} />
-
-            {llmProvider === 'local' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: C.ink2, textTransform: 'uppercase', letterSpacing: '.05em' }}>Local Base URL</label>
-                <input type="text" value={llmBaseUrl} onChange={(e) => setLlmBaseUrl(e.target.value)} placeholder="http://localhost:11434/v1"
-                  style={{ background: C.bg, border: `1px solid ${C.lineStr}`, borderRadius: 8, padding: '10px 12px', fontSize: 13, color: C.ink, outline: 'none', fontFamily: 'monospace' }} />
-              </div>
-            )}
 
             <button
               onClick={handleSaveKeys}
@@ -336,7 +303,6 @@ function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setO
                 <Zap size={12} /> Current Config
               </div>
               {[
-                { k: 'Provider',   v: llmProvider,                      c: C.ink2 },
                 { k: 'Model',      v: llmModel.split('/').pop() ?? llmModel, c: C.ink2 },
                 { k: 'OR Key',     v: openrouterKey ? '✓ Set' : '✗ Missing', c: openrouterKey ? '#10b981' : '#f87171' },
                 { k: 'Tavily',     v: tavilyKey ? '✓ Set' : '○ Optional',    c: tavilyKey ? '#10b981' : C.warn },
@@ -430,6 +396,34 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
   const uploadPending = telemetryMode === 'upload' && !uploadReady
   const manualPending = telemetryMode === 'manual' && !manualDescription.trim()
   const isDisabled = loading || loadingAnalysis || cockpitLocked || uploadPending || manualPending
+  const selectedScenario = scenarios.find((s) => s.scenario_type === selectedScenarioType)
+  const telemetrySummary = telemetryMode === 'standard'
+    ? {
+        title: selectedScenario?.name || 'Standard scenario',
+        detail: selectedScenario?.description || 'Choose a preset incident to drive the investigation.',
+        note: 'The swarm will use the selected preset data and follow the normal investigation pipeline.',
+      }
+    : telemetryMode === 'preset'
+      ? {
+          title: 'Bundled telemetry',
+          detail: 'Uses the built-in incident dataset bundled with the app for deterministic behavior.',
+          note: `Current preview topic: ${previewIncident.topic}`,
+        }
+      : telemetryMode === 'upload'
+        ? {
+            title: 'Uploaded JSON',
+            detail: 'Provide a JSON file containing `raw_logs` and/or `raw_metrics` to seed the run.',
+            note: uploadReady && uploadFileName
+              ? `Ready to launch with ${uploadFileName}.`
+              : 'Choose a file before launching to keep the run grounded in your own telemetry.',
+          }
+        : {
+            title: 'Manual description',
+            detail: 'Type a concise incident summary so the triage agent can extract the key signals.',
+            note: previewIncident.rootCause
+              ? `Preview root cause: ${previewIncident.rootCause.origin} (${previewIncident.rootCause.confidence}% confidence).`
+              : 'Keep the description short, specific, and focused on symptoms, timing, and impact.',
+          }
 
   return (
     // Outer: full height scrollable column
@@ -546,6 +540,23 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
               </div>
             </div>
           )}
+
+          <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'rgba(96,165,250,.05)', border: `1px solid rgba(96,165,250,.16)` }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                {telemetrySummary.title}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#93c5fd' }}>
+                {telemetryMode === 'standard' ? 'Preset flow' : telemetryMode === 'preset' ? 'Bundled data' : telemetryMode === 'upload' ? 'File-backed run' : 'Freeform intake'}
+              </div>
+            </div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.7, color: C.ink2 }}>
+              {telemetrySummary.detail}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.7, color: C.ink4 }}>
+              {telemetrySummary.note}
+            </div>
+          </div>
         </div>
 
         {/* ③ LAUNCH BUTTON ──────────────────────────────────── */}
@@ -705,12 +716,40 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
             <Globe size={15} style={{ color: C.info }} />
             <span style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.04em' }}>Network Topology Preview</span>
             <div style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10, background: 'rgba(16,185,129,.12)', color: '#34d399', border: '1px solid rgba(16,185,129,.22)' }}>
-              Synthetic Simulation Mode
+              User Instructions
             </div>
           </div>
-          {/* Fixed height so graph is always visible */}
-          <div style={{ height: 340, position: 'relative' }}>
-            <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} />
+          <div style={{ padding: '18px 18px 20px' }}>
+            <div style={{ display: 'grid', gap: 12 }}>
+              {[
+                '1. Pick a scenario, then launch the investigation swarm so the topology can populate with live agent activity.',
+                '2. Watch the steps on the left rail to see which agents are active, completed, or waiting for input.',
+                '3. Use the incident timeline and main investigation view to inspect evidence, while this panel stays as a quick orientation guide.',
+              ].map((line) => (
+                <div
+                  key={line}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(96,165,250,.05)',
+                    border: `1px solid rgba(96,165,250,.12)`,
+                  }}
+                >
+                  <div style={{ width: 22, height: 22, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'rgba(96,165,250,.15)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>
+                    i
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.65, color: C.ink2 }}>
+                    {line}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'rgba(16,185,129,.06)', border: '1px solid rgba(16,185,129,.16)', color: C.ink3, fontSize: 12.5, lineHeight: 1.7 }}>
+              This section is informational only. It does not change incident execution, data collection, or remediation behavior.
+            </div>
           </div>
         </div>
 
@@ -851,8 +890,6 @@ export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
           openrouterKey={props.openrouterKey} setOpenrouterKey={props.setOpenrouterKey}
           tavilyKey={props.tavilyKey} setTavilyKey={props.setTavilyKey}
           llmModel={props.llmModel} setLlmModel={props.setLlmModel}
-          llmProvider={props.llmProvider} setLlmProvider={props.setLlmProvider}
-          llmBaseUrl={props.llmBaseUrl} setLlmBaseUrl={props.setLlmBaseUrl}
         />
       </div>
 

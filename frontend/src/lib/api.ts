@@ -102,3 +102,43 @@ export async function stopIncident(runId: string): Promise<{ run_id: string; sta
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export interface TestResult {
+  ok: boolean
+  message: string
+}
+
+export async function testSlack(creds: {
+  slack_bot_token: string
+  slack_channel_id: string
+}): Promise<TestResult> {
+  try {
+    const res = await fetch('/api/test/slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(creds),
+    })
+    if (!res.ok) return { ok: false, message: 'Could not reach server — try again' }
+    return res.json()
+  } catch {
+    return { ok: false, message: 'Network error — check your connection' }
+  }
+}
+
+export async function testJira(creds: {
+  jira_base_url: string
+  jira_email: string
+  jira_api_token: string
+}): Promise<TestResult> {
+  try {
+    const res = await fetch('/api/test/jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(creds),
+    })
+    if (!res.ok) return { ok: false, message: 'Could not reach server — try again' }
+    return res.json()
+  } catch {
+    return { ok: false, message: 'Network error — check your connection' }
+  }
+}

@@ -65,3 +65,5 @@ This changelog is generated from the current git history. Run `scripts/update-ch
 - `ea92506` Merge origin/slack_integration — remove INCIDENT_API_KEY auth, update start.ps1
 - `bddd066` ui fixes
 - `8c1bb66` Merge origin/main (ui fixes, code fixes) — resolve start.ps1/vite.config conflicts
+
+

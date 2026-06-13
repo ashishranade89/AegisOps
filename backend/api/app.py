@@ -5,7 +5,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import asyncio
 import logging
+import uuid
 from contextlib import asynccontextmanager
+
+# Unique ID generated once per backend process — frontend uses this to detect restarts
+SERVER_INSTANCE_ID = str(uuid.uuid4())
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
@@ -236,7 +240,7 @@ async def resume_incident(run_id: str, payload: dict):
             run_graph_task(
                 run_id,
                 state.scenario_type,
-                credentials={},
+                credentials=resolve_llm_credentials(payload),
                 resume_state={"approval": approval.model_dump()},
             )
         )
@@ -564,4 +568,5 @@ async def health():
         "llm_configured": config.llm_configured(),
         "auth_required": bool(config.incident_api_key),
         "client_keys_allowed": config.allow_client_api_keys,
+        "server_instance_id": SERVER_INSTANCE_ID,
     }

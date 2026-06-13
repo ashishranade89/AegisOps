@@ -566,18 +566,12 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   };
 
   return (
-    <div className={`w-full h-full overflow-y-auto font-sans transition-colors duration-300 ${
-      isDarkMode ? "bg-[#02040a] text-slate-100" : "bg-slate-50 text-slate-900"
-    }`}>
+    <div className="w-full h-full overflow-y-auto font-sans transition-colors duration-300 bg-[var(--bg)] text-[var(--ink)]">
       
-      {isDarkMode && (
-        <div className="absolute top-0 right-0 w-[45%] h-[400px] bg-sky-500/5 blur-[120px] rounded-full pointer-events-none"></div>
-      )}
+      <div className="absolute top-0 right-0 w-[45%] h-[400px] bg-sky-500/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Unified Command Header */}
-      <header className={`sticky top-0 z-50 border-b backdrop-blur-md transition-all ${
-        isDarkMode ? "bg-[#02040a]/80 border-white/5" : "bg-white/80 border-slate-200"
-      }`}>
+      <header className="sticky top-0 z-50 border-b backdrop-blur-md transition-all bg-[var(--bg)]/80 border-[var(--line)]">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           
           {/* Logo & Platform Info */}
@@ -602,8 +596,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               onClick={() => setView("landing")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                 view === "landing"
-                  ? isDarkMode ? "bg-white/5 text-blue-400 border border-white/10" : "bg-slate-100 text-blue-600 border border-slate-200"
-                  : isDarkMode ? "text-slate-400 hover:text-slate-205" : "text-slate-650 hover:text-slate-900"
+                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
+                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               Overview
@@ -613,8 +607,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               onClick={() => { setView("app"); setActiveAppTab("sandbox"); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                 view === "app" && activeAppTab === "sandbox"
-                  ? isDarkMode ? "bg-white/5 text-blue-400 border border-white/10" : "bg-slate-100 text-blue-600 border border-slate-200"
-                  : isDarkMode ? "text-slate-400 hover:text-slate-205" : "text-slate-655 hover:text-slate-900"
+                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
+                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               Agent Swarm
@@ -623,8 +617,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("runs"); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                 view === "app" && activeAppTab === "history" && historyTab === "runs"
-                  ? isDarkMode ? "bg-white/5 text-blue-400 border border-white/10" : "bg-slate-100 text-blue-600 border border-slate-200"
-                  : isDarkMode ? "text-slate-400 hover:text-slate-205" : "text-slate-655 hover:text-slate-900"
+                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
+                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               Investigations
@@ -633,8 +627,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("rag"); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                 view === "app" && activeAppTab === "history" && historyTab === "rag"
-                  ? isDarkMode ? "bg-white/5 text-blue-400 border border-white/10" : "bg-slate-100 text-blue-600 border border-slate-200"
-                  : isDarkMode ? "text-slate-400 hover:text-slate-205" : "text-slate-655 hover:text-slate-900"
+                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
+                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
               }`}
             >
               Knowledge Base
@@ -654,9 +648,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2 rounded-lg border transition-all ${
-                isDarkMode ? "border-white/5 text-slate-300 hover:bg-white/5" : "border-slate-200 text-slate-600 hover:bg-slate-100"
-              }`}
+              className="p-2 rounded-lg border transition-all border-[var(--line)] text-[var(--ink-2)] hover:bg-[var(--surface)]"
               title="Toggle theme mode"
               aria-label="Toggle theme mode"
             >
@@ -686,20 +678,14 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 <span className="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>
                 ACTIVE INCIDENT DETECTOR ASSISTANT
               </div>
-              <h2 className={`text-3xl md:text-5xl font-extrabold tracking-tight mb-4 ${
-                isDarkMode 
-                  ? "bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent" 
-                  : "text-slate-900"
-              }`}>
+              <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 text-[var(--ink)]">
                 Autonomous AI agents detect, <br />
                 investigate, and explain <br />
                 <span className="bg-gradient-to-r from-blue-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
                   third-party vendor outages.
                 </span>
               </h2>
-              <p className={`text-sm md:text-base max-w-2xl mx-auto font-sans leading-relaxed ${
-                isDarkMode ? "text-slate-400" : "text-slate-600"
-              }`}>
+              <p className="text-sm md:text-base max-w-2xl mx-auto font-sans leading-relaxed text-[var(--ink-3)]">
                 From alert to root cause in minutes. AegisOps automatically triages telemetry exceptions, scans status pages, and compiles verified fallback routing patches.
               </p>
 
@@ -715,11 +701,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 </button>
                 <button
                   onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("runs"); }}
-                  className={`px-6 py-3 border font-bold text-xs font-sans uppercase rounded-lg transition-all cursor-pointer ${
-                    isDarkMode 
-                      ? "bg-slate-900/60 hover:bg-slate-955 border-white/5 text-slate-300" 
-                      : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-3xs"
-                  }`}
+                  className="px-6 py-3 border font-bold text-xs font-sans uppercase rounded-lg transition-all cursor-pointer bg-[var(--surface)] hover:bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)]"
                 >
                   Explore RCA Report
                 </button>
@@ -749,92 +731,76 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             <section id="autonomous-agents" className="mb-20 relative z-20">
               <div className="text-center mb-10">
                 <h3 className="text-xs font-mono tracking-widest text-blue-500 uppercase font-bold">Autonomous Agents Stack</h3>
-                <h4 className={`text-xl font-bold mt-1 ${isDarkMode ? "text-slate-200" : "text-slate-800"}`}>Four specialized layers. Zero-touch operations.</h4>
+                <h4 className="text-xl font-bold mt-1 text-[var(--ink)]">Four specialized layers. Zero-touch operations.</h4>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 
                 {/* CARD 1 */}
-                <div className={`p-5 rounded-xl border flex flex-col justify-between transition-all ${
-                  isDarkMode 
-                    ? "border-white/5 bg-slate-900/40 backdrop-blur-md hover:border-white/10" 
-                    : "border-slate-200 bg-white hover:border-slate-350 hover:shadow-xs text-slate-800 shadow-3xs"
-                }`}>
+                <div className="p-5 rounded-xl border flex flex-col justify-between transition-all border-[var(--line)] bg-[var(--surface)] backdrop-blur-md hover:border-[var(--line-strong)]">
                   <div>
                     <div className="w-10 h-10 rounded-lg bg-blue-950/50 border border-blue-500/20 flex items-center justify-center text-lg mb-4 shadow-3xs">
                       🔍
                     </div>
                     <h5 className="font-bold text-sm tracking-tight mb-1">Triage Agent</h5>
-                    <p className={`text-xs leading-normal font-sans ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+                    <p className="text-xs leading-normal font-sans text-[var(--ink-3)]">
                       Ingests logs, metrics, and alerts to pinpoint which dependency or vendor has failed.
                     </p>
                   </div>
-                  <div className={`mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono ${isDarkMode ? "border-white/5" : "border-slate-100"}`}>
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
                     <span className="text-blue-500 font-bold">Scanning Uptime</span>
-                    <span className={isDarkMode ? "text-slate-500" : "text-slate-400"}>Live alerts</span>
+                    <span className="text-[var(--ink-4)]">Live alerts</span>
                   </div>
                 </div>
 
                 {/* CARD 2 */}
-                <div className={`p-5 rounded-xl border flex flex-col justify-between transition-all ${
-                  isDarkMode 
-                    ? "border-white/5 bg-slate-900/40 backdrop-blur-md hover:border-white/10" 
-                    : "border-slate-200 bg-white hover:border-slate-350 hover:shadow-xs text-slate-800 shadow-3xs"
-                }`}>
+                <div className="p-5 rounded-xl border flex flex-col justify-between transition-all border-[var(--line)] bg-[var(--surface)] backdrop-blur-md hover:border-[var(--line-strong)]">
                   <div>
                     <div className="w-10 h-10 rounded-lg bg-amber-950/50 border border-amber-500/20 flex items-center justify-center text-lg mb-4 shadow-3xs">
                       ⚙️
                     </div>
                     <h5 className="font-bold text-sm tracking-tight mb-1">Web Searcher</h5>
-                    <p className={`text-xs leading-normal font-sans ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+                    <p className="text-xs leading-normal font-sans text-[var(--ink-3)]">
                       Queries Tavily Search for public DownDetector spikes and API status indicators.
                     </p>
                   </div>
-                  <div className={`mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono ${isDarkMode ? "border-white/5" : "border-slate-100"}`}>
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
                     <span className="text-amber-500 font-bold">Search API</span>
-                    <span className={isDarkMode ? "text-slate-500" : "text-slate-400"}>Tavily engine</span>
+                    <span className="text-[var(--ink-4)]">Tavily engine</span>
                   </div>
                 </div>
 
                 {/* CARD 3 */}
-                <div className={`p-5 rounded-xl border flex flex-col justify-between transition-all ${
-                  isDarkMode 
-                    ? "border-white/5 bg-slate-900/40 backdrop-blur-md hover:border-white/10" 
-                    : "border-slate-200 bg-white hover:border-slate-350 hover:shadow-xs text-slate-800 shadow-3xs"
-                }`}>
+                <div className="p-5 rounded-xl border flex flex-col justify-between transition-all border-[var(--line)] bg-[var(--surface)] backdrop-blur-md hover:border-[var(--line-strong)]">
                   <div>
                     <div className="w-10 h-10 rounded-lg bg-purple-950/50 border border-purple-500/20 flex items-center justify-center text-lg mb-4 shadow-3xs">
                       🌐
                     </div>
                     <h5 className="font-bold text-sm tracking-tight mb-1">Browser Watcher</h5>
-                    <p className={`text-xs leading-normal font-sans ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+                    <p className="text-xs leading-normal font-sans text-[var(--ink-3)]">
                       Launches headless Stagehand browsers to verify vendor status boards and login interfaces.
                     </p>
                   </div>
-                  <div className={`mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono ${isDarkMode ? "border-white/5" : "border-slate-100"}`}>
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
                     <span className="text-purple-500 font-bold">Scraping Engine</span>
-                    <span className={isDarkMode ? "text-slate-500" : "text-slate-400"}>Playwright</span>
+                    <span className="text-[var(--ink-4)]">Playwright</span>
                   </div>
                 </div>
 
                 {/* CARD 4 */}
-                <div className={`p-5 rounded-xl border flex flex-col justify-between transition-all ${
-                  isDarkMode 
-                    ? "border-white/5 bg-slate-900/40 backdrop-blur-md hover:border-white/10" 
-                    : "border-slate-200 bg-white hover:border-slate-350 hover:shadow-xs text-slate-800 shadow-3xs"
-                }`}>
+                <div className="p-5 rounded-xl border flex flex-col justify-between transition-all border-[var(--line)] bg-[var(--surface)] backdrop-blur-md hover:border-[var(--line-strong)]">
                   <div>
                     <div className="w-10 h-10 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-lg mb-4 shadow-3xs">
                       📝
                     </div>
                     <h5 className="font-bold text-sm tracking-tight mb-1">Mitigation Specialist</h5>
-                    <p className={`text-xs leading-normal font-sans ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+                    <p className="text-xs leading-normal font-sans text-[var(--ink-3)]">
                       Synthesizes DNS fallback routes and webhook buffer policies into self-healing reports.
                     </p>
                   </div>
-                  <div className={`mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono ${isDarkMode ? "border-white/5" : "border-slate-100"}`}>
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[11px] font-mono border-[var(--line)]">
                     <span className="text-emerald-500 font-bold">RAG Cache</span>
-                    <span className={isDarkMode ? "text-slate-500" : "text-slate-400"}>Auto-mitigate</span>
+                    <span className="text-[var(--ink-4)]">Auto-mitigate</span>
                   </div>
                 </div>
 
@@ -862,9 +828,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
           /* VIEW 3: UNIFIED HISTORY & KNOWLEDGE BASE */
           <div className="relative z-20 flex flex-col gap-6 fade-in">
             {/* Header Card */}
-            <div className={`rounded-xl p-4 border transition-all ${
-              isDarkMode ? "bg-slate-900/40 border-white/5" : "bg-white border-slate-200 shadow-sm"
-            }`}>
+            <div className="rounded-xl p-4 border transition-all bg-[var(--surface)] border-[var(--line)]">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -883,9 +847,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             </div>
 
             {/* Search + Tab filters */}
-            <div className={`rounded-xl p-3 border flex items-center gap-4 transition-all ${
-              isDarkMode ? "bg-slate-900/40 border-white/5" : "bg-white border-slate-200 shadow-sm"
-            }`}>
+            <div className="rounded-xl p-3 border flex items-center gap-4 transition-all bg-[var(--surface)] border-[var(--line)]">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                 <Search size={13} className="text-slate-400" />
                 <input
@@ -993,15 +955,15 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2 text-[10px] text-slate-400 font-sans border-t border-white/5 pt-1.5">
                             <div>
                               <span className="text-slate-500 block uppercase text-[8.5px]">Vendor</span>
-                              <span className={`font-semibold ${isDarkMode ? "text-slate-305" : "text-slate-700"}`}>{vendorName}</span>
+                              <span className={"font-semibold text-[var(--ink-2)]"}>{vendorName}</span>
                             </div>
                             <div>
                               <span className="text-slate-500 block uppercase text-[8.5px]">Root Cause</span>
-                              <span className={`font-semibold ${isDarkMode ? "text-slate-305" : "text-slate-700"}`}>{rootCause}</span>
+                              <span className={"font-semibold text-[var(--ink-2)]"}>{rootCause}</span>
                             </div>
                             <div>
                               <span className="text-slate-500 block uppercase text-[8.5px]">Duration</span>
-                              <span className={`font-semibold ${isDarkMode ? "text-slate-305" : "text-slate-700"}`}>{duration}</span>
+                              <span className={"font-semibold text-[var(--ink-2)]"}>{duration}</span>
                             </div>
                             <div>
                               <span className="text-slate-500 block uppercase text-[8.5px]">Confidence</span>
@@ -1009,7 +971,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                             </div>
                             <div>
                               <span className="text-slate-500 block uppercase text-[8.5px]">Resolution</span>
-                              <span className={`font-semibold ${isDarkMode ? "text-slate-305" : "text-slate-700"}`}>{resolution}</span>
+                              <span className={"font-semibold text-[var(--ink-2)]"}>{resolution}</span>
                             </div>
                           </div>
                           
@@ -1090,7 +1052,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 <div className="mb-2">
                   <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-blue-500 mb-3">System Incident Playbooks & Failure Modes</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className={`p-4 rounded-xl border transition-all ${isDarkMode ? "bg-slate-900/20 border-white/5" : "bg-white border-slate-200 shadow-3xs"}`}>
+                    <div className={"p-4 rounded-xl border transition-all bg-[var(--surface)] border-[var(--line)]"}>
                       <div className="flex items-center gap-2 mb-2">
                         <BookOpen className="w-4 h-4 text-blue-500" />
                         <h4 className="text-xs font-sans font-bold uppercase tracking-wider">Playbook: Stripe Connection pool overflow</h4>
@@ -1100,7 +1062,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       </p>
                       <span className="text-[9px] font-mono mt-2.5 block text-slate-500">TAGS: stripe · gateway · dns-failover</span>
                     </div>
-                    <div className={`p-4 rounded-xl border transition-all ${isDarkMode ? "bg-slate-900/20 border-white/5" : "bg-white border-slate-200 shadow-3xs"}`}>
+                    <div className={"p-4 rounded-xl border transition-all bg-[var(--surface)] border-[var(--line)]"}>
                       <div className="flex items-center gap-2 mb-2">
                         <BookOpen className="w-4 h-4 text-amber-500" />
                         <h4 className="text-xs font-sans font-bold uppercase tracking-wider">Playbook: AWS STS token mismatch recovery</h4>
@@ -1182,9 +1144,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
       </main>
 
       {/* Clean Global Footer */}
-      <footer className={`mt-24 border-t py-8 text-center text-xs font-mono tracking-wider transition-colors duration-300 ${
-        isDarkMode ? "bg-slate-955/40 border-white/5 text-slate-500" : "bg-white border-slate-200 text-slate-400"
-      }`}>
+      <footer className="mt-24 border-t py-8 text-center text-xs font-mono tracking-wider transition-colors duration-300 bg-[var(--surface)] border-[var(--line)] text-[var(--ink-4)]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span>© 2026 AEGISOPS, INC. ALL CLAIMS SECURED.</span>
           <div className="flex gap-4">

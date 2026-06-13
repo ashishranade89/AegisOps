@@ -36,7 +36,7 @@ info "Checking uv..."
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
   warn "uv not found - installing..."
   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-  $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+  $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:USERPROFILE\.local\bin;$env:PATH"
 }
 ok "uv found: $(uv --version 2>&1)"
 

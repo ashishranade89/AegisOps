@@ -209,7 +209,7 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
   return (
     <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', height: '100%', gap: 10, padding: 16, background: 'var(--bg)' }}>
       {/* Top: scenario picker card */}
-      <div style={{ background: '#060810', border: '1px solid #0f172a', borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ background: '#0d1117', border: '1px solid #0f172a', borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em' }}>
           Select Incident Scenario
         </div>
@@ -358,11 +358,9 @@ function BottomStrip({ onApplyMitigation, isMitigating }: BottomStripProps) {
       <AgentBadge label="Root Cause" state={agentBadgeState('rca')} />
       <AgentBadge label="Remediation" state={agentBadgeState('remediation')} />
       <div style={{ flex: 1 }} />
-      {confidence != null && (
-        <div style={{ fontSize: 8.5, color: '#10b981', padding: '2px 8px', border: '1px solid rgba(16,185,129,.15)', borderRadius: 10, background: 'rgba(16,185,129,.06)', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>
-          {confidence}% confidence
-        </div>
-      )}
+      <div style={{ fontSize: 8.5, color: confidence != null ? '#10b981' : '#334155', padding: '2px 8px', border: `1px solid ${confidence != null ? 'rgba(16,185,129,.15)' : '#0f172a'}`, borderRadius: 10, background: confidence != null ? 'rgba(16,185,129,.06)' : 'rgba(255,255,255,.02)', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>
+        {confidence != null ? `${confidence}%` : '—'} confidence
+      </div>
       <button
         onClick={onApplyMitigation}
         disabled={!canApply}
@@ -377,7 +375,7 @@ function BottomStrip({ onApplyMitigation, isMitigating }: BottomStripProps) {
 // ─── AgentSwarmCockpit ────────────────────────────────────────────────────────
 
 export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
-  const { status, report } = useIncidentStore()
+  const { status, report, graphNodes, graphLinks } = useIncidentStore()
 
   const activeStep = deriveActiveStep(status, props.loadingAnalysis, report, props.isMitigating)
 
@@ -405,7 +403,7 @@ export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
           />
         ) : (
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <RootCauseGraph nodes={props.previewIncident.graphNodes} links={props.previewIncident.graphLinks} />
+            <RootCauseGraph nodes={graphNodes} links={graphLinks} />
             <SwarmOverlay />
           </div>
         )}

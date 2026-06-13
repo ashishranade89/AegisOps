@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { GraphNode, GraphLink } from '@/types/vigilant'
 
 export type IncidentPhase =
   | 'triage'
@@ -83,6 +84,8 @@ interface IncidentStoreState {
   totalCostUsd: number
   browserResult: BrowserResult | null
   approvalContext: ApprovalContext | null
+  graphNodes: GraphNode[]
+  graphLinks: GraphLink[]
 
   setRunId: (id: string) => void
   setScenario: (scenario: string) => void
@@ -94,6 +97,7 @@ interface IncidentStoreState {
   setChatOpen: (open: boolean) => void
   setBrowserResult: (result: BrowserResult) => void
   setApprovalContext: (ctx: ApprovalContext) => void
+  setGraphData: (nodes: GraphNode[], links: GraphLink[]) => void
   reset: () => void
 }
 
@@ -111,6 +115,8 @@ const initialState = {
   totalCostUsd: 0,
   browserResult: null as BrowserResult | null,
   approvalContext: null as ApprovalContext | null,
+  graphNodes: [] as GraphNode[],
+  graphLinks: [] as GraphLink[],
 }
 
 export const useIncidentStore = create<IncidentStoreState>((set) => ({
@@ -160,5 +166,6 @@ export const useIncidentStore = create<IncidentStoreState>((set) => ({
   setChatOpen: (chatOpen) => set({ chatOpen }),
   setBrowserResult: (browserResult) => set({ browserResult }),
   setApprovalContext: (approvalContext) => set({ approvalContext }),
+  setGraphData: (graphNodes, graphLinks) => set({ graphNodes, graphLinks }),
   reset: () => set(initialState)
 }))

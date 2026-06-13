@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Play, Zap, Globe, Cpu, AlertTriangle, ShieldCheck, Eye, EyeOff, FlaskConical, Bell, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Play, Zap, Globe, Cpu, AlertTriangle, ShieldCheck, Eye, EyeOff, FlaskConical, Bell, ChevronDown, ChevronUp, Upload, CheckCircle2, XCircle } from 'lucide-react'
 import { ScenarioInfo } from '@/lib/api'
 import { IncidentState } from '@/types/vigilant'
 import { useIncidentStore, RunStatus } from '@/stores/incident-store'
@@ -8,7 +8,7 @@ import RootCauseGraph from './RootCauseGraph'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type StepState = 'idle' | 'active' | 'done'
-export type TelemetryMode = 'standard' | 'preset' | 'upload'
+export type TelemetryMode = 'standard' | 'preset' | 'upload' | 'manual'
 
 export interface AgentSwarmCockpitProps {
   scenarios: ScenarioInfo[]
@@ -17,6 +17,9 @@ export interface AgentSwarmCockpitProps {
   telemetryMode: TelemetryMode
   onTelemetryModeChange: (mode: TelemetryMode) => void
   onLaunch: () => void
+  onUploadData: (data: any) => void
+  manualDescription: string
+  setManualDescription: (v: string) => void
   loading: boolean
   loadingAnalysis: boolean
   cockpitLocked: boolean
@@ -89,6 +92,7 @@ const MODES: { value: TelemetryMode; label: string; desc: string }[] = [
   { value: 'standard', label: 'Standard',    desc: 'Pick from preset scenarios' },
   { value: 'preset',   label: 'Preset Data', desc: 'Use bundled telemetry' },
   { value: 'upload',   label: 'Upload JSON', desc: 'Custom telemetry file' },
+  { value: 'manual',   label: 'Describe',    desc: 'Type incident details' },
 ]
 
 // ─── Derived helpers ──────────────────────────────────────────────────────────
@@ -101,10 +105,11 @@ function deriveConfidence(completedNodes: string[]): number | null {
 
 function deriveActiveStep(status: RunStatus, loadingAnalysis: boolean, report: string, isMitigating: boolean): number {
   if (isMitigating) return 5
+  // After a run finishes (completed or failed), reset to step 1 so the user can launch a new investigation
+  if (status === 'completed' || status === 'failed') return 1
   if (report) return 4
   if (status === 'running' || status === 'paused') return 3
   if (loadingAnalysis || status === 'pending') return 2
-  if (status === 'completed' || status === 'failed') return 3
   return 1
 }
 
@@ -169,16 +174,16 @@ function VendorRow({ name, status }: { name: string; status: 'operational' | 'de
 
 // ─── ApiKeyInput ─────────────────────────────────────────────────────────────
 
-function ApiKeyInput({ label, value, onChange, placeholder, hint }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder: string; hint?: string
+function ApiKeyInput({ label, value, onChange, placeholder, hint, isSaved }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder: string; hint?: string; isSaved?: boolean
 }) {
   const [show, setShow] = useState(false)
-  const isSet = value.trim().length > 0
+  const hasBorder = isSaved !== undefined ? isSaved : value.trim().length > 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <label style={{ fontSize: 12, fontWeight: 700, color: C.ink2, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</label>
-        {isSet && <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,.14)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(16,185,129,.28)' }}>✓ Saved</span>}
+        {isSaved && <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,.14)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(16,185,129,.28)' }}>✓ Saved</span>}
       </div>
       <div style={{ position: 'relative' }}>
         <input
@@ -186,7 +191,7 @@ function ApiKeyInput({ label, value, onChange, placeholder, hint }: {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          style={{ width: '100%', background: C.bg, border: `1px solid ${isSet ? 'rgba(16,185,129,.4)' : C.lineStr}`, borderRadius: 8, padding: '10px 40px 10px 12px', fontSize: 13, color: C.ink, outline: 'none', fontFamily: 'monospace', transition: 'border-color 150ms' }}
+          style={{ width: '100%', background: C.bg, border: `1px solid ${hasBorder ? 'rgba(16,185,129,.4)' : C.lineStr}`, borderRadius: 8, padding: '10px 40px 10px 12px', fontSize: 13, color: C.ink, outline: 'none', fontFamily: 'monospace', transition: 'border-color 150ms' }}
         />
         <button type="button" onClick={() => setShow(!show)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.ink3, padding: 0 }}>
           {show ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -199,16 +204,38 @@ function ApiKeyInput({ label, value, onChange, placeholder, hint }: {
 
 // ─── LeftRail ─────────────────────────────────────────────────────────────────
 
-function LeftRail({ activeStep, vendorHealth, openrouterKey, setOpenrouterKey, tavilyKey, setTavilyKey, llmModel, setLlmModel, llmProvider, setLlmProvider, llmBaseUrl, setLlmBaseUrl }: {
+function LeftRail({ activeStep, vendorHealth, cockpitLocked, openrouterKey, setOpenrouterKey, tavilyKey, setTavilyKey, llmModel, setLlmModel, llmProvider, setLlmProvider, llmBaseUrl, setLlmBaseUrl }: {
   activeStep: number
   vendorHealth: IncidentState['vendorHealth']
+  cockpitLocked: boolean
   openrouterKey: string; setOpenrouterKey: (v: string) => void
   tavilyKey: string; setTavilyKey: (v: string) => void
   llmModel: string; setLlmModel: (v: string) => void
   llmProvider: 'openrouter' | 'local'; setLlmProvider: (v: 'openrouter' | 'local') => void
   llmBaseUrl: string; setLlmBaseUrl: (v: string) => void
 }) {
-  const [tab, setTab] = useState<'steps' | 'keys' | 'engine'>('steps')
+  // Auto-jump to keys tab when no key is configured so user knows where to go
+  const [tab, setTab] = useState<'steps' | 'keys' | 'engine'>(() => cockpitLocked ? 'keys' : 'steps')
+  useEffect(() => {
+    if (cockpitLocked) setTab('keys')
+  }, [cockpitLocked])
+  const [keysSaved, setKeysSaved] = useState(false)
+  const [draftOrKey, setDraftOrKey] = useState('')
+  const [draftTavilyKey, setDraftTavilyKey] = useState('')
+
+  const handleSaveKeys = () => {
+    const newOrKey = draftOrKey.trim() || openrouterKey
+    const newTavilyKey = draftTavilyKey.trim() || tavilyKey
+    if (draftOrKey.trim()) setOpenrouterKey(draftOrKey)
+    if (draftTavilyKey.trim()) setTavilyKey(draftTavilyKey)
+    localStorage.setItem('openrouter_key', newOrKey)
+    localStorage.setItem('tavily_key', newTavilyKey)
+    localStorage.setItem('llm_model', llmModel)
+    localStorage.setItem('llm_provider', llmProvider)
+    localStorage.setItem('llm_base_url', llmBaseUrl)
+    setKeysSaved(true)
+    setTimeout(() => setKeysSaved(false), 2000)
+  }
 
   return (
     <div style={{ background: C.surface, borderRight: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -258,8 +285,8 @@ function LeftRail({ activeStep, vendorHealth, openrouterKey, setOpenrouterKey, t
               </div>
             </div>
 
-            <ApiKeyInput label="OpenRouter Key" value={openrouterKey} onChange={setOpenrouterKey} placeholder="sk-or-v1-..." hint="Required for cloud LLM inference via OpenRouter" />
-            <ApiKeyInput label="Tavily Search Key" value={tavilyKey} onChange={setTavilyKey} placeholder="tvly-..." hint="Powers real-time vendor status page search" />
+            <ApiKeyInput label="OpenRouter Key" value={draftOrKey} onChange={setDraftOrKey} placeholder="sk-or-v1-..." hint="Required for cloud LLM inference via OpenRouter" isSaved={openrouterKey.trim().length > 0} />
+            <ApiKeyInput label="Tavily Search Key" value={draftTavilyKey} onChange={setDraftTavilyKey} placeholder="tvly-..." hint="Powers real-time vendor status page search" isSaved={tavilyKey.trim().length > 0} />
 
             {llmProvider === 'local' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -269,12 +296,21 @@ function LeftRail({ activeStep, vendorHealth, openrouterKey, setOpenrouterKey, t
               </div>
             )}
 
-            <div style={{ padding: '12px', borderRadius: 10, background: C.surface2, border: `1px solid ${C.line}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <ShieldCheck size={13} style={{ color: '#14b8a6' }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.ink2 }}>Secure Storage</span>
-              </div>
-              <div style={{ fontSize: 12, color: C.ink3, lineHeight: 1.5 }}>Keys are stored locally in your browser and never sent to third parties.</div>
+            <button
+              onClick={handleSaveKeys}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: keysSaved ? 'rgba(16,185,129,.18)' : 'rgba(37,99,235,.18)',
+                color: keysSaved ? '#10b981' : '#60a5fa',
+                fontSize: 13, fontWeight: 800, transition: 'all 200ms',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                boxShadow: keysSaved ? '0 0 0 1px rgba(16,185,129,.35)' : '0 0 0 1px rgba(37,99,235,.35)',
+              }}
+            >
+              {keysSaved ? <><ShieldCheck size={13} /> Keys Saved</> : <><ShieldCheck size={13} /> Save Keys</>}
+            </button>
+            <div style={{ padding: '10px 12px', borderRadius: 8, background: C.surface2, border: `1px solid ${C.line}` }}>
+              <div style={{ fontSize: 11.5, color: C.ink3, lineHeight: 1.5 }}>Keys are stored locally in your browser and never sent to third parties.</div>
             </div>
           </div>
         )}
@@ -326,13 +362,16 @@ function LeftRail({ activeStep, vendorHealth, openrouterKey, setOpenrouterKey, t
 
 // ─── ScenarioPicker — vertical layout, fully scrollable ──────────────────────
 
-function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, telemetryMode, onTelemetryModeChange, onLaunch, loading, loadingAnalysis, cockpitLocked, previewIncident }: {
+function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, telemetryMode, onTelemetryModeChange, onLaunch, onFileUpload, manualDescription, setManualDescription, loading, loadingAnalysis, cockpitLocked, previewIncident }: {
   scenarios: ScenarioInfo[]
   selectedScenarioType: string
   onScenarioChange: (type: string) => void
   telemetryMode: TelemetryMode
   onTelemetryModeChange: (mode: TelemetryMode) => void
   onLaunch: () => void
+  onFileUpload: (data: any) => void
+  manualDescription: string
+  setManualDescription: (v: string) => void
   loading: boolean
   loadingAnalysis: boolean
   cockpitLocked: boolean
@@ -343,6 +382,33 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
   const [showManualTest, setShowManualTest] = useState(false)
   const [manualLatency, setManualLatency] = useState(2500)
   const [manualErrorRate, setManualErrorRate] = useState(18)
+  const [uploadFileName, setUploadFileName] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadReady, setUploadReady] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadFileName(file.name)
+    setUploadError(null)
+    setUploadReady(false)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string)
+        if (!data.raw_logs && !data.raw_metrics) {
+          setUploadError('JSON must contain raw_logs or raw_metrics keys')
+          return
+        }
+        onFileUpload(data)
+        setUploadReady(true)
+      } catch {
+        setUploadError('Invalid JSON — could not parse file')
+      }
+    }
+    reader.readAsText(file)
+  }
 
   const runManualTest = async () => {
     setManualTestLoading(true)
@@ -361,7 +427,9 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
     setManualTestLoading(false)
   }
 
-  const isDisabled = loading || loadingAnalysis || cockpitLocked
+  const uploadPending = telemetryMode === 'upload' && !uploadReady
+  const manualPending = telemetryMode === 'manual' && !manualDescription.trim()
+  const isDisabled = loading || loadingAnalysis || cockpitLocked || uploadPending || manualPending
 
   return (
     // Outer: full height scrollable column
@@ -400,7 +468,7 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
         {/* ② TELEMETRY MODE ─────────────────────────────────── */}
         <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: '18px 20px' }}>
           <SectionTitle icon={<Cpu size={15} style={{ color: C.info }} />}>Telemetry Mode</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
             {MODES.map((m) => {
               const active = telemetryMode === m.value
               return (
@@ -420,16 +488,82 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
               )
             })}
           </div>
+
+          {/* Manual triage — visible when 'manual' mode selected */}
+          {telemetryMode === 'manual' && (
+            <div className="fade-in" style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.ink3, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                Describe the incident
+              </div>
+              <textarea
+                value={manualDescription}
+                onChange={(e) => setManualDescription(e.target.value)}
+                placeholder={`e.g. "Stripe payments failing with 504 errors since 10 AM. Error rate jumped to 18%. Charge API calls timing out after 30s. Affects all EU customers."`}
+                rows={5}
+                style={{
+                  width: '100%', background: C.bg, border: `1px solid ${manualDescription.trim() ? 'rgba(16,185,129,.4)' : C.lineStr}`,
+                  borderRadius: 10, padding: '12px 14px', fontSize: 13, color: C.ink,
+                  outline: 'none', fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical',
+                  transition: 'border-color 150ms', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ fontSize: 11.5, color: C.ink4, marginTop: 6 }}>
+                Include vendor name, error type, timing, and any metrics you have. The triage agent will extract structured data from your description.
+              </div>
+            </div>
+          )}
+
+          {/* Upload JSON file picker — only visible when upload mode selected */}
+          {telemetryMode === 'upload' && (
+            <div className="fade-in" style={{ marginTop: 14 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: 'none' }}
+                onChange={handleFile}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  padding: '14px 20px', borderRadius: 10, cursor: 'pointer', transition: 'all 150ms',
+                  background: uploadReady ? 'rgba(16,185,129,.1)' : 'rgba(96,165,250,.07)',
+                  border: `2px dashed ${uploadReady ? 'rgba(16,185,129,.5)' : uploadError ? 'rgba(244,63,94,.5)' : 'rgba(96,165,250,.35)'}`,
+                  color: uploadReady ? '#10b981' : uploadError ? '#f87171' : '#60a5fa',
+                }}
+              >
+                {uploadReady
+                  ? <><CheckCircle2 size={16} /><span style={{ fontSize: 13, fontWeight: 700 }}>{uploadFileName}</span></>
+                  : uploadError
+                    ? <><XCircle size={16} /><span style={{ fontSize: 13, fontWeight: 700 }}>{uploadError}</span></>
+                    : <><Upload size={16} /><span style={{ fontSize: 13, fontWeight: 700 }}>Click to select JSON telemetry file</span></>
+                }
+              </button>
+              <div style={{ fontSize: 11, color: C.ink4, marginTop: 6 }}>
+                File must contain <code style={{ color: C.info, fontFamily: 'monospace' }}>raw_logs</code> or <code style={{ color: C.info, fontFamily: 'monospace' }}>raw_metrics</code> keys
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ③ LAUNCH BUTTON ──────────────────────────────────── */}
         <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: '18px 20px' }}>
-          {cockpitLocked && (
+          {(cockpitLocked || uploadPending || manualPending) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderRadius: 10, background: C.negTint, border: `1px solid rgba(244,63,94,.25)`, marginBottom: 14 }}>
               <AlertTriangle size={15} style={{ color: C.neg, flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.neg }}>API Keys Required</div>
-                <div style={{ fontSize: 12, color: C.ink3, marginTop: 2 }}>Go to the API Keys tab in the left sidebar to add your OpenRouter key.</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.neg }}>
+                  {cockpitLocked ? 'API Keys Required' : uploadPending ? 'Upload a JSON File First' : 'Describe the Incident First'}
+                </div>
+                <div style={{ fontSize: 12, color: C.ink3, marginTop: 2 }}>
+                  {cockpitLocked
+                    ? 'Go to the API Keys tab in the left sidebar → enter your OpenRouter key → click Save Keys.'
+                    : uploadPending
+                      ? 'Select a telemetry JSON file using the file picker above before launching.'
+                      : 'Type your incident description in the text box above before launching.'}
+                </div>
               </div>
             </div>
           )}
@@ -713,6 +847,7 @@ export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
         <LeftRail
           activeStep={activeStep}
           vendorHealth={props.previewIncident.vendorHealth}
+          cockpitLocked={props.cockpitLocked}
           openrouterKey={props.openrouterKey} setOpenrouterKey={props.setOpenrouterKey}
           tavilyKey={props.tavilyKey} setTavilyKey={props.setTavilyKey}
           llmModel={props.llmModel} setLlmModel={props.setLlmModel}
@@ -731,6 +866,9 @@ export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
             telemetryMode={props.telemetryMode}
             onTelemetryModeChange={props.onTelemetryModeChange}
             onLaunch={props.onLaunch}
+            onFileUpload={props.onUploadData}
+            manualDescription={props.manualDescription}
+            setManualDescription={props.setManualDescription}
             loading={props.loading}
             loadingAnalysis={props.loadingAnalysis}
             cockpitLocked={props.cockpitLocked}

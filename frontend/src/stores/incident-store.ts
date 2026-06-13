@@ -121,7 +121,7 @@ const initialState = {
 
 export const useIncidentStore = create<IncidentStoreState>((set) => ({
   ...initialState,
-  setRunId: (runId) => set({ runId, status: 'pending', completedNodes: [], agentCosts: {}, totalCostUsd: 0 }),
+  setRunId: (runId) => set({ runId, status: 'pending', completedNodes: [], agentCosts: {}, totalCostUsd: 0, report: '', approvalContext: null, events: [], activeAgent: null }),
   setScenario: (scenario) => set({ scenario }),
   setStatus: (status) => set({ status }),
   setPhase: (phase) =>

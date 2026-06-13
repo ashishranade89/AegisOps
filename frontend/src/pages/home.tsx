@@ -297,9 +297,21 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   }
 
   async function clearRag() {
-    if (!confirm('Clear all knowledge base entries? This cannot be undone.')) return;
+    if (!confirm('Clear all knowledge base entries and stored API keys? This cannot be undone.')) return;
     await fetch('/api/rag/clear', { method: 'DELETE', headers: getAuthHeaders() });
     setHistoryRagEntries([]);
+
+    // Clear API keys from localStorage
+    localStorage.removeItem('openrouter_key');
+    localStorage.removeItem('tavily_key');
+    localStorage.removeItem('incident_api_key');
+    sessionStorage.removeItem('keys_submitted_session');
+
+    // Reset React state
+    setOpenrouterKey('');
+    setTavilyKey('');
+    setIncidentApiKey('');
+    setKeysSubmitted(false);
   }
 
   const toggleRunExpansion = async (runId: string) => {
@@ -373,11 +385,13 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   // Immersive gateway scanning terminal simulation
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
   const [_consoleLogs, setConsoleLogs] = useState<string[]>([]);
-  // True once the user has explicitly submitted keys via the gate THIS session.
-  // sessionStorage resets on every page refresh / new tab — so the gate always
-  // shows at least once per session, even if localStorage has saved keys.
+  // True once the user has explicitly submitted keys via the gate or if keys are already saved in localStorage.
   const [keysSubmitted, setKeysSubmitted] = useState<boolean>(
-    () => sessionStorage.getItem('keys_submitted_session') === 'true'
+    () => {
+      const hasOrKey = !!localStorage.getItem('openrouter_key');
+      const isLocal = localStorage.getItem('llm_provider') === 'local';
+      return isLocal || hasOrKey;
+    }
   );
   
   const { runId, setRunId, setScenario } = useIncidentStore();

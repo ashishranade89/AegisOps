@@ -10,6 +10,7 @@ import { HypothesisChart, InvestigationMindMap } from '@/components/report-visua
 import { IncidentChat } from '@/components/incident-chat'
 import { useSSE } from '@/hooks/use-sse'
 import { useIncidentStore } from '@/stores/incident-store'
+import { stopIncident } from '@/lib/api'
 import { ArrowLeft, Loader2, Sparkles, AlertTriangle, DollarSign, Download, Printer } from 'lucide-react'
 
 function scenarioHeading(key: string): string {
@@ -142,9 +143,37 @@ export function RunPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {isStreaming && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--primary-accent)', fontWeight: 500 }}>
-                  <Loader2 size={11} style={{ animation: 'spin 0.8s linear infinite' }} />
-                  Agents working...
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--primary-accent)', fontWeight: 500 }}>
+                    <Loader2 size={11} style={{ animation: 'spin 0.8s linear infinite' }} />
+                    Agents working...
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to stop the active investigation swarm?")) {
+                        try {
+                          await stopIncident(runId!);
+                        } catch (err) {
+                          console.error("Failed to stop run:", err);
+                        }
+                      }
+                    }}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 8,
+                      color: '#ef4444',
+                      padding: '5px 11px',
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 120ms',
+                    }}
+                    className="hover:bg-red-500/25"
+                  >
+                    Stop Swarm
+                  </button>
                 </div>
               )}
               {status === 'completed' && (

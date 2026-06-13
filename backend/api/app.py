@@ -28,6 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _checkpointer = None
+_running_tasks = {}
 
 
 @asynccontextmanager
@@ -190,7 +191,7 @@ async def start_incident(payload: dict):
 
     try:
         state = create_run(scenario_type)
-        asyncio.create_task(
+        task = asyncio.create_task(
             run_graph_task(
                 state.run_id,
                 scenario_type,
@@ -198,6 +199,8 @@ async def start_incident(payload: dict):
                 custom_telemetry,
             )
         )
+        _running_tasks[state.run_id] = task
+        task.add_done_callback(lambda t: _running_tasks.pop(state.run_id, None))
         return {"run_id": state.run_id, "status": "pending"}
     except HTTPException:
         raise
@@ -229,7 +232,7 @@ async def resume_incident(run_id: str, payload: dict):
     try:
         state.status = "resuming"
         persist_run(state)
-        asyncio.create_task(
+        task = asyncio.create_task(
             run_graph_task(
                 run_id,
                 state.scenario_type,
@@ -237,9 +240,27 @@ async def resume_incident(run_id: str, payload: dict):
                 resume_state={"approval": approval.model_dump()},
             )
         )
+        _running_tasks[run_id] = task
+        task.add_done_callback(lambda t: _running_tasks.pop(run_id, None))
         return {"run_id": run_id, "status": "resumed", "approval": approval.model_dump()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/incident/{run_id}/stop", dependencies=[Depends(require_api_auth)])
+async def stop_incident(run_id: str):
+    task = _running_tasks.get(run_id)
+    if task:
+        task.cancel()
+
+    state = get_run(run_id)
+    if state:
+        state.status = "failed"
+        state.current_phase = "failed"
+        persist_run(state)
+        await send_sse_event(run_id, "error", {"message": "Pipeline execution stopped by user."})
+        await send_sse_event(run_id, "done", {"run_id": run_id})
+    return {"status": "stopped", "run_id": run_id}
 
 
 @app.get("/api/incident/{run_id}/stream", dependencies=[Depends(require_api_auth)])

@@ -101,3 +101,12 @@ export async function resumeIncident(
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function stopIncident(runId: string): Promise<{ run_id: string; status: string }> {
+  const res = await fetch(`${API_BASE}/${runId}/stop`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}

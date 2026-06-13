@@ -137,7 +137,24 @@ docker build -t aegisops .
 docker run -p 8004:8004 --env-file .env -v $(pwd)/data:/app/data aegisops
 ```
 
-Run tests: `uv run pytest tests/ -q`
+## Running tests
+
+Run the full test suite before pushing any changes:
+
+```bash
+uv run pytest tests/ -v
+```
+
+| Test file | What it covers |
+|---|---|
+| `tests/test_api.py` | API health, auth, incident lifecycle, monitor CRUD endpoints |
+| `tests/test_cost_tracker.py` | Token accumulation, USD cost calculation, multi-agent/multi-run isolation |
+| `tests/test_monitor_classify.py` | Severity keyword detection, warning threshold logic, case-insensitivity |
+| `tests/test_production.py` | Pydantic model validation, LLM credential resolution |
+
+All 39 tests must pass before opening a pull request. The suite runs in under 2 seconds with no external services required.
+
+---
 
 **Continuing development in a new AI chat?** Read [`docs/CLAUDE_HANDOFF.md`](docs/CLAUDE_HANDOFF.md) first.
 

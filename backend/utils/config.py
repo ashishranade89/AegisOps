@@ -45,8 +45,8 @@ class AppConfig:
 
     @property
     def allow_client_api_keys(self) -> bool:
-        """Allow API keys in POST body (dev/hackathon only). Default: false."""
-        return _env_bool("ALLOW_CLIENT_API_KEYS", default=False)
+        """Allow API keys in POST body. Default: true (required for hackathon/local dev)."""
+        return _env_bool("ALLOW_CLIENT_API_KEYS", default=True)
 
     @property
     def checkpoint_db_path(self) -> Path:

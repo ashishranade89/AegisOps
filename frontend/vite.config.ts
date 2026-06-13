@@ -14,11 +14,13 @@ export default defineConfig({
     port: 5176,
     proxy: {
       '/api': {
-        target: 'http://localhost:8004',
+        // Use 127.0.0.1 explicitly — on Windows, 'localhost' can resolve to ::1 (IPv6)
+        // while uvicorn only listens on 127.0.0.1, causing ECONNREFUSED errors
+        target: 'http://127.0.0.1:8004',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:8004',
+        target: 'http://127.0.0.1:8004',
         changeOrigin: true,
       },
     },

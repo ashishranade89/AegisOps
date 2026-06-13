@@ -58,10 +58,11 @@ export async function startIncident(
     custom_telemetry: options.customTelemetry,
   }
 
-  if (options.clientKeysAllowed) {
-    if (options.openrouterApiKey) body.openrouter_api_key = options.openrouterApiKey
-    if (options.tavilyApiKey) body.tavily_api_key = options.tavilyApiKey
-  }
+  // Always forward user-supplied keys — backend decides whether to use them
+  // based on ALLOW_CLIENT_API_KEYS. This prevents silent failures when the
+  // server has no server-side key configured.
+  if (options.openrouterApiKey) body.openrouter_api_key = options.openrouterApiKey
+  if (options.tavilyApiKey) body.tavily_api_key = options.tavilyApiKey
 
   const res = await fetch(API_BASE, {
     method: 'POST',

@@ -60,10 +60,18 @@ if [ ! -f "$ROOT/.env" ]; then
 else
   ok ".env exists"
   if grep -q 'OPENROUTER_API_KEY=sk-or-\.\.\.' "$ROOT/.env" 2>/dev/null; then
-    warn "OPENROUTER_API_KEY is still the placeholder — edit .env before running"
+    warn "OPENROUTER_API_KEY is still the placeholder — edit .env or enter it in the UI"
     ISSUES=$((ISSUES+1))
   else
     ok "OPENROUTER_API_KEY set"
+  fi
+  # Check for the known 401/400 bug: ALLOW_CLIENT_API_KEYS=false blocks UI key entry
+  if grep -q '^ALLOW_CLIENT_API_KEYS=false' "$ROOT/.env" 2>/dev/null; then
+    fail "ALLOW_CLIENT_API_KEYS=false — this blocks the UI from sending your API key"
+    ask_fix "Set ALLOW_CLIENT_API_KEYS=true" \
+      "sed -i.bak 's|^ALLOW_CLIENT_API_KEYS=false|ALLOW_CLIENT_API_KEYS=true|' '$ROOT/.env' && rm -f '$ROOT/.env.bak'"
+  else
+    ok "ALLOW_CLIENT_API_KEYS is not blocking key forwarding"
   fi
 fi
 

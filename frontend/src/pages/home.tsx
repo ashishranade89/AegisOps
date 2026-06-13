@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Shield, ArrowRight,
   Sun, Moon,
-  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2
+  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, X, AlertCircle
 } from "lucide-react";
 import { NetworkParticles } from "@/components/vigilant/NetworkParticles";
 import { AIGlobeHero } from "@/components/vigilant/AIGlobeHero";
@@ -357,15 +357,28 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [selectedScenarioType, setSelectedScenarioType] = useState<string>("");
   
-  // Settings loaded from local storage or defaults
-  const [llmProvider, setLlmProvider] = useState<'openrouter' | 'local'>('openrouter');
-  const [openrouterKey, setOpenrouterKey] = useState<string>('');
-  const [llmBaseUrl, setLlmBaseUrl] = useState<string>('http://localhost:11434/v1');
-  const [tavilyKey, setTavilyKey] = useState<string>('');
-  const [llmModel, setLlmModel] = useState<string>('openai/gpt-4o');
+  // Settings — initialized directly from localStorage so cockpitLocked is correct on first render.
+  // Using lazy initialisers avoids a flash-of-disabled-button that happened when useEffect ran async.
+  const [llmProvider, setLlmProvider] = useState<'openrouter' | 'local'>(
+    () => (localStorage.getItem('llm_provider') as 'openrouter' | 'local') || 'openrouter'
+  );
+  const [openrouterKey, setOpenrouterKey] = useState<string>(
+    () => localStorage.getItem('openrouter_key') || ''
+  );
+  const [llmBaseUrl, setLlmBaseUrl] = useState<string>(
+    () => localStorage.getItem('llm_base_url') || 'http://localhost:11434/v1'
+  );
+  const [tavilyKey, setTavilyKey] = useState<string>(
+    () => localStorage.getItem('tavily_key') || ''
+  );
+  const [llmModel, setLlmModel] = useState<string>(
+    () => localStorage.getItem('llm_model') || 'openai/gpt-4o'
+  );
   const [clientKeysAllowed, setClientKeysAllowed] = useState<boolean>(true);
   const [authRequired, setAuthRequired] = useState<boolean>(false);
-  const [incidentApiKey, setIncidentApiKey] = useState<string>('');
+  const [incidentApiKey, setIncidentApiKey] = useState<string>(
+    () => localStorage.getItem('incident_api_key') || ''
+  );
   
   // Telemetry Ingestion Mode states
   const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload' | 'manual'>('standard');
@@ -393,7 +406,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   
   // Real Investigation running states
   const [loading, setLoading] = useState<boolean>(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [launchError, setError] = useState<string | null>(null);
   
   // Immersive gateway scanning terminal simulation
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
@@ -418,16 +431,8 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const needsIncidentApiKey = authRequired && !incidentApiKey.trim();
   const cockpitLocked = needsClientOpenRouterKey || needsIncidentApiKey;
 
-  // Retrieve keys on mount & health checks
+  // Health check + scenario load on mount
   useEffect(() => {
-    // Load saved config into state (pre-fills the gate form for returning users)
-    setOpenrouterKey(localStorage.getItem('openrouter_key') || '');
-    setTavilyKey(localStorage.getItem('tavily_key') || '');
-    setLlmModel(localStorage.getItem('llm_model') || 'openai/gpt-4o');
-    setLlmProvider((localStorage.getItem('llm_provider') as 'openrouter' | 'local') || 'openrouter');
-    setLlmBaseUrl(localStorage.getItem('llm_base_url') || 'http://localhost:11434/v1');
-    setIncidentApiKey(localStorage.getItem('incident_api_key') || '');
-
     async function load() {
       try {
         const health = await getHealth();
@@ -635,7 +640,29 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
   return (
     <div className="w-full h-full overflow-y-auto font-sans transition-colors duration-300 bg-[var(--bg)] text-[var(--ink)]">
-      
+
+      {/* Floating launch-error toast — appears when handleStart encounters an error */}
+      {launchError && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+          padding: '13px 18px', borderRadius: 12, maxWidth: 520,
+          background: 'rgba(220,38,38,.95)', color: '#fff',
+          boxShadow: '0 8px 32px rgba(220,38,38,.4)', backdropFilter: 'blur(8px)',
+          fontSize: 13, fontWeight: 600, lineHeight: 1.4,
+          animation: 'fade-in 200ms ease',
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{launchError}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 0, display: 'flex' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="absolute top-0 right-0 w-[45%] h-[400px] bg-sky-500/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Unified Command Header */}

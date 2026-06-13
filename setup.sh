@@ -96,10 +96,17 @@ if [ ! -f "$ROOT/.env" ]; then
     rm -f "$ROOT/.env.bak"
     ok "OpenRouter key saved to .env"
   else
-    warn "OpenRouter key not set. Edit .env before running."
+    warn "OpenRouter key not set — you can enter it in the UI when the app starts."
   fi
 else
   ok ".env already exists"
+  # Migrate existing .env: if ALLOW_CLIENT_API_KEYS is explicitly false, flip it to true
+  # (required for the UI key gate to work correctly)
+  if grep -q "^ALLOW_CLIENT_API_KEYS=false" "$ROOT/.env" 2>/dev/null; then
+    sed -i.bak "s|^ALLOW_CLIENT_API_KEYS=false|ALLOW_CLIENT_API_KEYS=true|" "$ROOT/.env"
+    rm -f "$ROOT/.env.bak"
+    warn "Migrated ALLOW_CLIENT_API_KEYS=false → true (required for UI key entry to work)"
+  fi
 fi
 
 # ── 8. Smoke test ─────────────────────────────────────────────────────────────

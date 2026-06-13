@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.0",
     "langgraph-checkpoint-sqlite>=3.1.0",
     "aiosqlite>=0.22.1",
+    "chromadb>=0.6.0",
     "pytest>=9.0.3",
     "httpx>=0.28.1",
     "pytest-asyncio>=1.4.0",

@@ -674,6 +674,11 @@ async def slack_action(request: Request):
     if jira_ticket_id:
         jira_status = "In Progress" if decision == "approved" else "Closed"
         update_jira_status.invoke({"ticket_id": jira_ticket_id, "status": jira_status})
+        if decision == "rejected":
+            add_jira_comment.invoke({
+                "ticket_id": jira_ticket_id,
+                "comment": f"Rejected via Slack by {user_name}",
+            })
 
     # Resume the pipeline using the same path as the web UI
     run_state = get_run(run_id)

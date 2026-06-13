@@ -106,7 +106,6 @@ function TraceItemRow({ event, agentCost, index }: { event: TimelineEvent; agent
   const [showRaw, setShowRaw] = useState(false)
   const ts = typeStyle(event.type)
   const body = detailBody(event)
-  const isExpandable = true // Always expandable to show metadata
   const metadata = buildMetadata(event, agentCost)
 
   const summaryText = summary(event)

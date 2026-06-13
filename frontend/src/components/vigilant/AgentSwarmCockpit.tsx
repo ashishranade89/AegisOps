@@ -121,10 +121,6 @@ function SectionTitle({ icon, children }: { icon: React.ReactNode; children: Rea
   )
 }
 
-function Divider() {
-  return <div style={{ height: 1, background: C.line, margin: '4px 0' }} />
-}
-
 // ─── StepItem ─────────────────────────────────────────────────────────────────
 
 function StepItem({ num, title, subtitle, state, isLast }: {
@@ -330,7 +326,7 @@ function LeftRail({ activeStep, vendorHealth, openrouterKey, setOpenrouterKey, t
 
 // ─── ScenarioPicker — vertical layout, fully scrollable ──────────────────────
 
-function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, telemetryMode, onTelemetryModeChange, onLaunch, loading, loadingAnalysis, cockpitLocked, previewIncident, openrouterKey, tavilyKey }: {
+function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, telemetryMode, onTelemetryModeChange, onLaunch, loading, loadingAnalysis, cockpitLocked, previewIncident }: {
   scenarios: ScenarioInfo[]
   selectedScenarioType: string
   onScenarioChange: (type: string) => void
@@ -341,8 +337,6 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
   loadingAnalysis: boolean
   cockpitLocked: boolean
   previewIncident: IncidentState
-  openrouterKey: string
-  tavilyKey: string
 }) {
   const [manualTestResult, setManualTestResult] = useState<string | null>(null)
   const [manualTestLoading, setManualTestLoading] = useState(false)
@@ -741,8 +735,6 @@ export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
             loadingAnalysis={props.loadingAnalysis}
             cockpitLocked={props.cockpitLocked}
             previewIncident={props.previewIncident}
-            openrouterKey={props.openrouterKey}
-            tavilyKey={props.tavilyKey}
           />
         ) : (
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>

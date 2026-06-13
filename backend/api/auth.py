@@ -19,6 +19,8 @@ async def require_api_auth(
         token = credentials.credentials
     if not token:
         token = request.headers.get("X-API-Key")
+    if not token:
+        token = request.query_params.get("api_key")
 
     if token != expected:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")

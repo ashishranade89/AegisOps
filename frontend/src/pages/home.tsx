@@ -257,12 +257,21 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [expandedRunReport, setExpandedRunReport] = useState<string | null>(null);
   const [reportLoadingId, setReportLoadingId] = useState<string | null>(null);
 
+  const getAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
+    const headers: Record<string, string> = { ...extra };
+    const apiKey = localStorage.getItem('incident_api_key') || incidentApiKey;
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+    return headers;
+  };
+
   async function loadHistoryData() {
     setHistoryLoading(true);
     try {
       const [runsRes, ragRes] = await Promise.all([
-        fetch('/api/history'),
-        fetch('/api/rag/entries'),
+        fetch('/api/history', { headers: getAuthHeaders() }),
+        fetch('/api/rag/entries', { headers: getAuthHeaders() }),
       ]);
       if (runsRes.ok) setHistoryRuns(await runsRes.json());
       if (ragRes.ok) setHistoryRagEntries(await ragRes.json());
@@ -274,7 +283,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   }
 
   async function deleteRun(id: string) {
-    await fetch(`/api/history/${id}`, { method: 'DELETE' });
+    await fetch(`/api/history/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
     setHistoryRuns(r => r.filter(x => x.run_id !== id));
     if (expandedRunId === id) {
       setExpandedRunId(null);
@@ -283,13 +292,13 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   }
 
   async function deleteRagEntry(id: string) {
-    await fetch(`/api/rag/entries/${id}`, { method: 'DELETE' });
+    await fetch(`/api/rag/entries/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
     setHistoryRagEntries(e => e.filter(x => x.incident_id !== id));
   }
 
   async function clearRag() {
     if (!confirm('Clear all knowledge base entries? This cannot be undone.')) return;
-    await fetch('/api/rag/clear', { method: 'DELETE' });
+    await fetch('/api/rag/clear', { method: 'DELETE', headers: getAuthHeaders() });
     setHistoryRagEntries([]);
   }
 
@@ -302,7 +311,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     setExpandedRunId(runId);
     setReportLoadingId(runId);
     try {
-      const res = await fetch(`/api/history/${runId}/report`);
+      const res = await fetch(`/api/history/${runId}/report`, { headers: getAuthHeaders() });
       const d = await res.json();
       setExpandedRunReport(d.report || "—");
     } catch {
@@ -328,7 +337,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [llmBaseUrl, setLlmBaseUrl] = useState<string>('http://localhost:11434/v1');
   const [tavilyKey, setTavilyKey] = useState<string>('');
   const [llmModel, setLlmModel] = useState<string>('openai/gpt-4o');
-  const [serverLlmConfigured, setServerLlmConfigured] = useState<boolean>(false);
   const [clientKeysAllowed, setClientKeysAllowed] = useState<boolean>(true);
   const [authRequired, setAuthRequired] = useState<boolean>(false);
   const [incidentApiKey, setIncidentApiKey] = useState<string>('');
@@ -365,9 +373,11 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   // Immersive gateway scanning terminal simulation
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
   const [_consoleLogs, setConsoleLogs] = useState<string[]>([]);
-  // True once the user has explicitly submitted keys via the gate
+  // True once the user has explicitly submitted keys via the gate THIS session.
+  // sessionStorage resets on every page refresh / new tab — so the gate always
+  // shows at least once per session, even if localStorage has saved keys.
   const [keysSubmitted, setKeysSubmitted] = useState<boolean>(
-    () => !!localStorage.getItem('openrouter_key') || localStorage.getItem('llm_provider') === 'local'
+    () => sessionStorage.getItem('keys_submitted_session') === 'true'
   );
   
   const { runId, setRunId, setScenario } = useIncidentStore();
@@ -383,6 +393,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
   // Retrieve keys on mount & health checks
   useEffect(() => {
+    // Load saved config into state (pre-fills the gate form for returning users)
     setOpenrouterKey(localStorage.getItem('openrouter_key') || '');
     setTavilyKey(localStorage.getItem('tavily_key') || '');
     setLlmModel(localStorage.getItem('llm_model') || 'openai/gpt-4o');
@@ -393,7 +404,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     async function load() {
       try {
         const health = await getHealth();
-        setServerLlmConfigured(health.llm_configured);
         setClientKeysAllowed(health.client_keys_allowed);
         setAuthRequired(health.auth_required);
 
@@ -585,93 +595,77 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
       {/* Unified Command Header */}
       <header className="sticky top-0 z-50 border-b backdrop-blur-md transition-all bg-[var(--bg)]/80 border-[var(--line)]">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          
-          {/* Logo & Platform Info */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-rose-500 flex items-center justify-center text-white font-black shadow-lg shadow-blue-500/10">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-rose-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-tight flex items-center gap-1.5 leading-none">
-                AegisOps
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-sans bg-blue-500/10 text-blue-450 border border-blue-500/20">
-                  Active
-                </span>
-              </h1>
-              <span className="text-[9px] font-sans text-[var(--ink-3)] block mt-0.5">Autonomous AegisOps Orchestrator</span>
+              <h1 style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-.02em', color: 'var(--ink)', margin: 0, lineHeight: 1.2 }}>AegisOps</h1>
+              <span style={{ fontSize: 10, color: 'var(--ink-4)', display: 'block', fontFamily: 'monospace' }}>Autonomous Incident Orchestrator</span>
             </div>
           </div>
 
-          {/* Navigation Controls - Unified structure visible everywhere */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setView("landing")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
-                view === "landing"
-                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
-                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              id="view-sandbox-dashboard-btn"
-              onClick={() => { setView("app"); setActiveAppTab("sandbox"); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
-                view === "app" && activeAppTab === "sandbox"
-                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
-                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
-              }`}
-            >
-              Agent Swarm
-            </button>
-            <button
-              onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("runs"); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
-                view === "app" && activeAppTab === "history" && historyTab === "runs"
-                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
-                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
-              }`}
-            >
-              Investigations
-            </button>
-            <button
-              onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("rag"); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
-                view === "app" && activeAppTab === "history" && historyTab === "rag"
-                  ? "bg-[var(--surface)] text-[var(--info)] border border-[var(--line-strong)]"
-                  : "text-[var(--ink-3)] hover:text-[var(--ink)]"
-              }`}
-            >
-              Knowledge Base
-            </button>
+          {/* Segmented Nav */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 2,
+            background: 'var(--surface)', border: '1px solid var(--line)',
+            borderRadius: 12, padding: 4, flexShrink: 0,
+          }}>
+            {([
+              { label: 'Overview',       action: () => setView('landing'),                                             active: view === 'landing' },
+              { label: 'Agent Swarm',    action: () => { setView('app'); setActiveAppTab('sandbox'); },                active: view === 'app' && activeAppTab === 'sandbox', id: 'view-sandbox-dashboard-btn' },
+              { label: 'Investigations', action: () => { setView('app'); setActiveAppTab('history'); setHistoryTab('runs'); }, active: view === 'app' && activeAppTab === 'history' && historyTab === 'runs' },
+              { label: 'Knowledge Base', action: () => { setView('app'); setActiveAppTab('history'); setHistoryTab('rag'); },  active: view === 'app' && activeAppTab === 'history' && historyTab === 'rag' },
+            ] as const).map((item) => (
+              <button
+                key={item.label}
+                id={(item as any).id}
+                onClick={item.action}
+                style={{
+                  padding: '7px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: item.active ? 800 : 500,
+                  background: item.active ? 'var(--primary-accent)' : 'transparent',
+                  color: item.active ? '#fff' : 'var(--ink-3)',
+                  transition: 'all 150ms',
+                  boxShadow: item.active ? '0 2px 10px rgba(249,115,22,.3)' : 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
             {runId && (
               <button
                 onClick={() => navigate(`/run/${runId}`)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold font-sans text-rose-500 hover:text-rose-600 dark:text-rose-450 dark:hover:text-rose-350 animate-pulse flex items-center gap-1 cursor-pointer"
+                style={{
+                  padding: '7px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(244,63,94,.15)', color: '#f43f5e',
+                  animation: 'none',
+                }}
               >
-                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', display: 'inline-block', animation: 'sse-pulse 1.5s infinite' }} />
                 Active Run
               </button>
             )}
           </div>
 
-          {/* Settings & Theme */}
-          <div className="flex items-center gap-3">
+          {/* Right controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,.08)', color: '#10b981', border: '1px solid rgba(16,185,129,.2)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              Live
+            </span>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-lg border transition-all border-[var(--line)] text-[var(--ink-2)] hover:bg-[var(--surface)]"
-              title="Toggle theme mode"
-              aria-label="Toggle theme mode"
+              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--ink-2)', transition: 'all 120ms' }}
+              title="Toggle theme"
             >
               {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
-
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] uppercase font-mono px-2 py-1 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-              Live Gateway Linked
-            </span>
           </div>
         </div>
       </header>
@@ -703,20 +697,42 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               </p>
 
               {/* CTAs */}
-              <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 32 }}>
                 <button
                   id="deploy-sandbox-btn"
-                  onClick={() => { setView("app"); setActiveAppTab("sandbox"); }}
-                  className="px-6 py-3 bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs font-sans rounded-lg shadow-xl shadow-blue-500/10 flex items-center gap-2 transform active:scale-95 transition-all cursor-pointer"
+                  onClick={() => { setView('app'); setActiveAppTab('sandbox'); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '15px 32px', borderRadius: 12,
+                    background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                    color: '#fff', fontSize: 15, fontWeight: 900,
+                    border: '1px solid rgba(255,255,255,.18)',
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 32px rgba(37,99,235,.45), 0 2px 0 rgba(255,255,255,.12) inset',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    transition: 'all 150ms',
+                  }}
                 >
+                  <span style={{ fontSize: 18 }}>🚀</span>
                   Run Demo Incident
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => { setView("app"); setActiveAppTab("history"); setHistoryTab("runs"); }}
-                  className="px-6 py-3 border font-bold text-xs font-sans rounded-lg transition-all cursor-pointer bg-[var(--surface)] hover:bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)]"
+                  onClick={() => { setView('app'); setActiveAppTab('history'); setHistoryTab('runs'); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '15px 32px', borderRadius: 12,
+                    background: 'var(--surface)',
+                    color: 'var(--ink)', fontSize: 15, fontWeight: 800,
+                    border: '1px solid var(--line-strong)',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(0,0,0,.2)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    transition: 'all 150ms',
+                  }}
                 >
-                  Explore RCA Report
+                  <span style={{ fontSize: 18 }}>📋</span>
+                  Explore RCA Reports
                 </button>
               </div>
 
@@ -822,8 +838,9 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
           </div>
         ) : activeAppTab === "sandbox" ? (
-          cockpitLocked && !keysSubmitted ? (
-            // ── API Key Gate — shown before cockpit if no key configured ──
+          !keysSubmitted ? (
+            // ── API Key Gate — always shown on first visit / fresh session ──
+            // Pre-filled with any previously saved keys for convenience.
             <ApiKeyGate
               openrouterKey={openrouterKey}
               setOpenrouterKey={setOpenrouterKey}
@@ -835,7 +852,12 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               setLlmProvider={setLlmProvider}
               llmBaseUrl={llmBaseUrl}
               setLlmBaseUrl={setLlmBaseUrl}
-              onSubmit={() => setKeysSubmitted(true)}
+              onSubmit={() => {
+                // Mark this session as having submitted — survives tab navigation
+                // but resets on page refresh / new tab, re-showing the gate.
+                sessionStorage.setItem('keys_submitted_session', 'true');
+                setKeysSubmitted(true);
+              }}
             />
           ) : (
           <AgentSwarmCockpit
@@ -868,60 +890,67 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
           
           /* VIEW 3: UNIFIED HISTORY & KNOWLEDGE BASE */
           <div className="relative z-20 flex flex-col gap-6 fade-in">
-            {/* Header Card */}
-            <div className="rounded-xl p-4 border transition-all bg-[var(--surface)] border-[var(--line)]">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <BookOpen size={16} className="text-blue-500" />
-                    <h2 className="text-sm font-bold font-sans tracking-tight" style={{ margin: 0 }}>History & Knowledge Base</h2>
-                  </div>
-                  <p className="muted" style={{ fontSize: 11, marginTop: 4, color: 'var(--ink-3)' }}>
-                    Review past incident runs and manage the RAG knowledge base
-                  </p>
-                </div>
-                <button type="button" onClick={loadHistoryData} className="icon-btn" title="Refresh" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 10px', borderRadius: 6 }}>
-                  <RefreshCw size={12} className={historyLoading ? "spin-slow" : ""} />
+
+            {/* Page header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '4px 0' }}>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: 0, letterSpacing: '-.02em' }}>
+                  {historyTab === 'runs' ? '🔍 Past Investigations' : '🧠 Knowledge Base'}
+                </h2>
+                <p style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 4 }}>
+                  {historyTab === 'runs'
+                    ? 'All completed incident investigation runs with root cause analysis reports.'
+                    : 'RAG-indexed incident memories used to accelerate future investigations.'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button" onClick={loadHistoryData}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 9, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <RefreshCw size={13} className={historyLoading ? 'spin-slow' : ''} />
                   Refresh
                 </button>
               </div>
             </div>
 
-            {/* Search + Tab filters */}
-            <div className="rounded-xl p-3 border flex items-center gap-4 transition-all bg-[var(--surface)] border-[var(--line)]">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                <Search size={13} className="text-[var(--ink-3)]" />
-                <input
-                  type="text"
-                  placeholder="Search runs or knowledge entries..."
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  style={{
-                    flex: 1, background: 'none', border: 'none', outline: 'none',
-                    fontSize: 12, color: 'inherit', fontFamily: 'var(--font-ui)',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
+            {/* Segmented tab + search bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', gap: 4, background: 'var(--bg)', padding: 4, borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }}>
                 {(['runs', 'rag'] as const).map((t) => (
                   <button key={t} type="button" onClick={() => setHistoryTab(t)} style={{
-                    fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                    border: '1px solid var(--line)', cursor: 'pointer',
+                    padding: '7px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                    fontSize: 12.5, fontWeight: historyTab === t ? 800 : 500,
                     background: historyTab === t ? 'var(--primary-accent)' : 'transparent',
-                    color: historyTab === t ? '#fff' : 'inherit',
+                    color: historyTab === t ? '#fff' : 'var(--ink-3)',
+                    transition: 'all 120ms',
+                    boxShadow: historyTab === t ? '0 2px 8px rgba(249,115,22,.3)' : 'none',
                   }}>
-                    {t === 'runs' ? `Runs (${historyRuns.length})` : `Knowledge (${historyRagEntries.length})`}
+                    {t === 'runs'
+                      ? `Investigations ${historyRuns.length > 0 ? `(${historyRuns.length})` : ''}`
+                      : `Knowledge ${historyRagEntries.length > 0 ? `(${historyRagEntries.length})` : ''}`}
                   </button>
                 ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Search size={14} style={{ color: 'var(--ink-4)', flexShrink: 0 }} />
+                <input
+                  type="text"
+                  placeholder="Search by run ID, scenario, vendor…"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--ink)', fontFamily: 'var(--font-ui)' }}
+                />
               </div>
             </div>
 
             {historyLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Loader2 size={24} className="spin-slow text-blue-500" />
+              <div style={{ textAlign: 'center', padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+                <Loader2 size={32} style={{ color: 'var(--primary-accent)', animation: 'cockpit-spin 1s linear infinite' }} />
+                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Loading investigation history…</span>
               </div>
             ) : historyTab === 'runs' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {historyRuns.filter(r => 
                   !historySearch || 
                   r.run_id.toLowerCase().includes(historySearch.toLowerCase()) || 

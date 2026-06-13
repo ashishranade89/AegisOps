@@ -9,7 +9,10 @@ export function useSSE(runId: string | null) {
     if (!runId) return
 
     // SSE Stream URL
-    const streamUrl = `/api/incident/${runId}/stream`
+    const apiKey = localStorage.getItem('incident_api_key')
+    const streamUrl = apiKey
+      ? `/api/incident/${runId}/stream?api_key=${encodeURIComponent(apiKey)}`
+      : `/api/incident/${runId}/stream`
     const es = new EventSource(streamUrl)
 
     const handle = (type: string) => (e: MessageEvent) => {

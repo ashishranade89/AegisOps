@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Key, Eye, EyeOff, ShieldCheck, ArrowRight, ExternalLink, Zap, Globe, Cpu, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface ApiKeyGateProps {
@@ -68,11 +68,14 @@ export function ApiKeyGate({
   llmBaseUrl, setLlmBaseUrl,
   onSubmit,
 }: ApiKeyGateProps) {
-  const [localOrKey, setLocalOrKey] = useState(openrouterKey)
-  const [localTavilyKey, setLocalTavilyKey] = useState(tavilyKey)
-  const [localModel, setLocalModel] = useState(llmModel)
-  const [localProvider, setLocalProvider] = useState(llmProvider)
-  const [localBaseUrl, setLocalBaseUrl] = useState(llmBaseUrl)
+  // Read directly from localStorage so the form is pre-filled even before
+  // home.tsx's useEffect has had a chance to load the values into props.
+  const [localOrKey, setLocalOrKey] = useState(() => localStorage.getItem('openrouter_key') || openrouterKey || '')
+  const [localTavilyKey, setLocalTavilyKey] = useState(() => localStorage.getItem('tavily_key') || tavilyKey || '')
+  const [localModel, setLocalModel] = useState(() => localStorage.getItem('llm_model') || llmModel || 'google/gemini-2.0-flash-001')
+  const [localProvider, setLocalProvider] = useState<'openrouter' | 'local'>(() => (localStorage.getItem('llm_provider') as 'openrouter' | 'local') || llmProvider || 'openrouter')
+  const [localBaseUrl, setLocalBaseUrl] = useState(() => localStorage.getItem('llm_base_url') || llmBaseUrl || 'http://localhost:11434/v1')
+
 
   const canSubmit = localProvider === 'local'
     ? localBaseUrl.trim().length > 0

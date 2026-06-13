@@ -37,7 +37,7 @@ def get_vector_store_and_fallback_path(model_name: str | None, api_key: str = No
         
     try:
         from langchain_openai import OpenAIEmbeddings
-        from langchain_community.vectorstores import Chroma
+        from langchain_chroma import Chroma
         
         # If it's a local model, we use the local model base URL
         emb = OpenAIEmbeddings(

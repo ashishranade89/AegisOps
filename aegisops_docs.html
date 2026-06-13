@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AegisOps — Project Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:       #080c14;
+    --surface:  #0d1420;
+    --card:     #111927;
+    --border:   #1e2d42;
+    --accent:   #00d4ff;
+    --accent2:  #7b5ea7;
+    --accent3:  #ff6b35;
+    --green:    #00e676;
+    --yellow:   #ffd740;
+    --text:     #c8d8e8;
+    --muted:    #5a7090;
+    --white:    #eaf2ff;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(8,12,20,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0; padding: 0 2rem;
+    height: 52px;
+  }
+  .nav-logo {
+    font-family: var(--font-mono);
+    font-weight: 700; font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: .04em;
+    margin-right: 2rem;
+    flex-shrink: 0;
+  }
+  .nav-logo span { color: var(--accent3); }
+  nav a {
+    color: var(--muted); text-decoration: none;
+    font-size: .82rem; font-weight: 500; letter-spacing: .04em;
+    padding: .3rem .85rem; border-radius: 4px;
+    transition: color .2s, background .2s;
+    white-space: nowrap;
+  }
+  nav a:hover { color: var(--white); background: rgba(0,212,255,.07); }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 120px 2rem 70px;
+    max-width: 900px; margin: 0 auto; text-align: center;
+  }
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: .75rem; letter-spacing: .14em;
+    color: var(--accent); text-transform: uppercase;
+    margin-bottom: 1.2rem;
+  }
+  .hero h1 {
+    font-size: clamp(2rem,5vw,3.4rem);
+    font-weight: 700; line-height: 1.15;
+    color: var(--white);
+    margin-bottom: 1rem;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p {
+    font-size: 1.1rem; color: var(--text); max-width: 640px;
+    margin: 0 auto 2rem;
+  }
+  .badge-row {
+    display: flex; flex-wrap: wrap; gap: .5rem;
+    justify-content: center; margin-bottom: 2.5rem;
+  }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: .72rem; font-weight: 600;
+    padding: .28rem .75rem; border-radius: 999px;
+    letter-spacing: .05em;
+  }
+  .badge-blue  { background: rgba(0,212,255,.12); color: var(--accent); border: 1px solid rgba(0,212,255,.3); }
+  .badge-purple{ background: rgba(123,94,167,.15); color: #c09aff; border: 1px solid rgba(123,94,167,.35); }
+  .badge-green { background: rgba(0,230,118,.1); color: var(--green); border: 1px solid rgba(0,230,118,.25); }
+  .badge-orange{ background: rgba(255,107,53,.1); color: var(--accent3); border: 1px solid rgba(255,107,53,.25); }
+
+  /* ── SECTIONS ── */
+  section { padding: 60px 2rem; max-width: 1060px; margin: 0 auto; }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: .7rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: .6rem;
+  }
+  h2 {
+    font-size: 1.7rem; font-weight: 700; color: var(--white);
+    margin-bottom: 1.4rem;
+  }
+  h3 {
+    font-size: 1.05rem; font-weight: 600; color: var(--white);
+    margin-bottom: .5rem;
+  }
+  p { margin-bottom: 1rem; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    border: none; border-top: 1px solid var(--border);
+    max-width: 1060px; margin: 0 auto;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1rem;
+  }
+  .card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
+    gap: 1rem; margin-bottom: 1rem;
+  }
+
+  /* ── AGENT SWARM ── */
+  .agent-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr));
+    gap: .85rem;
+  }
+  .agent-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 9px; padding: 1.1rem 1.3rem;
+    transition: border-color .2s, transform .2s;
+  }
+  .agent-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .agent-num {
+    font-family: var(--font-mono); font-size: .7rem; font-weight: 700;
+    color: var(--accent); letter-spacing: .1em; margin-bottom: .3rem;
+  }
+  .agent-card h3 { font-size: .95rem; margin-bottom: .3rem; }
+  .agent-card p { font-size: .82rem; color: var(--muted); margin: 0; }
+
+  /* ── CODE BLOCK ── */
+  pre {
+    background: #060a10; border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.1rem 1.3rem;
+    overflow-x: auto; margin: 1rem 0;
+    font-family: var(--font-mono); font-size: .78rem;
+    line-height: 1.65; color: #9bbfd4;
+  }
+  code { font-family: var(--font-mono); font-size: .85em; }
+  p code, li code {
+    background: rgba(0,212,255,.08); color: var(--accent);
+    padding: .1em .35em; border-radius: 4px; border: 1px solid rgba(0,212,255,.18);
+  }
+
+  /* ── TABLE ── */
+  .tbl-wrap { overflow-x: auto; margin: 1rem 0; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: .83rem;
+  }
+  th {
+    background: rgba(0,212,255,.06);
+    color: var(--accent); font-family: var(--font-mono);
+    font-size: .72rem; letter-spacing: .07em; text-align: left;
+    padding: .55rem .9rem; border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: .55rem .9rem; border-bottom: 1px solid rgba(30,45,66,.6);
+    color: var(--text); vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,212,255,.03); }
+
+  /* ── STEP LIST ── */
+  .steps { list-style: none; counter-reset: steps; }
+  .steps li {
+    counter-increment: steps;
+    display: grid; grid-template-columns: 2.2rem 1fr;
+    gap: .8rem; align-items: start;
+    padding: .9rem 0; border-bottom: 1px solid var(--border);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(steps);
+    font-family: var(--font-mono); font-size: .75rem; font-weight: 700;
+    color: var(--accent); background: rgba(0,212,255,.1);
+    border: 1px solid rgba(0,212,255,.3);
+    width: 1.9rem; height: 1.9rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: .12rem; flex-shrink: 0;
+  }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; }
+  .checklist li {
+    padding: .35rem 0;
+    display: flex; align-items: baseline; gap: .6rem; font-size: .88rem;
+  }
+  .checklist li::before {
+    content: '▸'; color: var(--accent3); flex-shrink: 0; font-size: .8rem;
+  }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(0,212,255,.05);
+    padding: .9rem 1.1rem; border-radius: 0 6px 6px 0;
+    margin: 1rem 0; font-size: .88rem;
+  }
+  .callout.warn { border-color: var(--yellow); background: rgba(255,215,64,.05); }
+  .callout.danger{ border-color: var(--accent3); background: rgba(255,107,53,.05); }
+  .callout strong { color: var(--white); }
+
+  /* ── ENV TABLE PILL ── */
+  .req { color: var(--accent3); font-weight: 600; }
+  .opt { color: var(--muted); }
+
+  /* ════════════════════════════════════════
+     WORKFLOW DIAGRAM SVG CONTAINER
+  ════════════════════════════════════════ */
+  .diagram-scroll {
+    overflow-x: auto; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.5rem;
+  }
+
+  /* ── MINDMAP ── */
+  .mindmap-scroll {
+    overflow-x: auto; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 1rem;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--muted); font-size: .8rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+  }
+  footer span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav>
+  <div class="nav-logo">Aegis<span>Ops</span></div>
+  <a href="#overview">Overview</a>
+  <a href="#setup">Setup</a>
+  <a href="#workflow">Workflow</a>
+  <a href="#agents">Agents</a>
+  <a href="#mindmap">Mind Map</a>
+  <a href="#api">API</a>
+  <a href="#deploy">Deploy</a>
+  <a href="#troubleshoot">Troubleshoot</a>
+</nav>
+
+<!-- ══════════════ HERO ══════════════ -->
+<div class="hero">
+  <div class="hero-eyebrow">AI Accelerator Hackathon 2026</div>
+  <h1>Autonomous <em>Vendor Outage</em> Investigator</h1>
+  <p>An 8-agent LangGraph swarm that triages incidents, scrapes status pages, searches the web, and generates full postmortem reports — in under 60 seconds.</p>
+  <div class="badge-row">
+    <span class="badge badge-blue">LangGraph</span>
+    <span class="badge badge-blue">FastAPI</span>
+    <span class="badge badge-purple">React 19 + Vite</span>
+    <span class="badge badge-purple">Electron 36</span>
+    <span class="badge badge-green">ChromaDB RAG</span>
+    <span class="badge badge-green">SQLite Checkpoints</span>
+    <span class="badge badge-orange">Human-in-the-Loop</span>
+    <span class="badge badge-orange">SSE Streaming</span>
+  </div>
+</div>
+
+<!-- ══════════════ OVERVIEW ══════════════ -->
+<section id="overview">
+  <div class="section-label">01 — Overview</div>
+  <h2>What AegisOps Does</h2>
+  <p>When a payment gateway, CDN, or cloud provider goes down, an SRE typically spends 30–90 minutes manually correlating logs, checking status pages, and writing incident tickets. AegisOps automates that entire loop.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>🔍 Autonomous Triage</h3>
+      <p>Ingests raw application logs and metrics, identifies the responsible vendor, and determines P1–P4 severity automatically.</p>
+    </div>
+    <div class="card">
+      <h3>🧠 RAG-Accelerated RCA</h3>
+      <p>Searches historical incident memory (ChromaDB). Confidence ≥ 0.85 skips RCA entirely — straight to remediation in &lt;10 s for known patterns.</p>
+    </div>
+    <div class="card">
+      <h3>🌐 Multi-Source Verification</h3>
+      <p>Browser Agent (Playwright) scrapes official status pages. Web Search Agent queries Tavily or DuckDuckGo for community confirmation.</p>
+    </div>
+    <div class="card">
+      <h3>🛡️ Human-in-the-Loop Gate</h3>
+      <p>Graph pauses before remediation. You review findings, approve or reject the plan. SQLite checkpoints survive server restarts during the pause.</p>
+    </div>
+    <div class="card">
+      <h3>📋 Postmortem in Seconds</h3>
+      <p>Reporter Agent synthesises all findings into a professional Markdown postmortem with timeline, impact analysis, RCA, and recommendations.</p>
+    </div>
+    <div class="card">
+      <h3>🔄 Self-Healing</h3>
+      <p>Any node failure redirects to the Self-Heal Agent, which retries up to 3× and reroutes around broken tools automatically.</p>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:2rem">Technology Stack</div>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Layer</th><th>Technology</th></tr>
+      <tr><td>LLM Orchestration</td><td>LangGraph 0.0.60+, LangChain 0.1+</td></tr>
+      <tr><td>LLM Provider</td><td>OpenRouter — Gemini, GPT-4o, Claude, DeepSeek, Ollama</td></tr>
+      <tr><td>Backend</td><td>FastAPI 0.115+ with Uvicorn, SSE via sse-starlette</td></tr>
+      <tr><td>Browser Automation</td><td>Playwright via Stagehand</td></tr>
+      <tr><td>Vector DB / RAG</td><td>ChromaDB with JSON file fallback</td></tr>
+      <tr><td>Checkpointing</td><td>SQLite — AsyncSqliteSaver (langgraph-checkpoint-sqlite)</td></tr>
+      <tr><td>Frontend</td><td>React 19 + Vite 5 + TypeScript + Tailwind CSS v4</td></tr>
+      <tr><td>3D Visualisation</td><td>Three.js via @react-three/fiber + drei</td></tr>
+      <tr><td>State Management</td><td>Zustand</td></tr>
+      <tr><td>Desktop Packaging</td><td>Electron 36 + electron-builder</td></tr>
+    </table>
+  </div>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ SETUP ══════════════ -->
+<section id="setup">
+  <div class="section-label">02 — Setup</div>
+  <h2>Installation & Configuration</h2>
+
+  <h3>Prerequisites</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Tool</th><th>Version</th><th>Check</th></tr>
+      <tr><td>Python</td><td>3.12+</td><td><code>python3 --version</code></td></tr>
+      <tr><td>uv (Python pkg manager)</td><td>latest</td><td><code>uv --version</code></td></tr>
+      <tr><td>Node.js</td><td>18+</td><td><code>node --version</code></td></tr>
+      <tr><td>npm</td><td>9+</td><td><code>npm --version</code></td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">API Keys</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Key</th><th>Required?</th><th>Purpose</th><th>Get It</th></tr>
+      <tr><td><code>OPENROUTER_API_KEY</code></td><td><span class="req">Required</span></td><td>Powers all LLM agents</td><td>openrouter.ai/keys</td></tr>
+      <tr><td><code>TAVILY_API_KEY</code></td><td><span class="opt">Optional</span></td><td>Enhanced real-time web search</td><td>tavily.com</td></tr>
+      <tr><td><code>SLACK_WEBHOOK_URL</code></td><td><span class="opt">Optional</span></td><td>Automated Slack incident alerts</td><td>Slack App settings</td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Step-by-Step Installation</h3>
+  <ol class="steps">
+    <li>
+      <div>
+        <strong>Clone the repository</strong>
+        <pre>git clone https://github.com/your-repo/vendor-outage-investigator.git
+cd vendor-outage-investigator</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Run the automated setup script</strong><br/>
+        <span style="font-size:.85rem;color:var(--muted)">Installs Python deps via uv, installs npm packages, copies <code>.env.example</code> → <code>.env</code>, installs Playwright Chromium, creates <code>data/</code> directory.</span>
+        <pre># macOS / Linux
+chmod +x setup.sh && ./setup.sh
+
+# Windows PowerShell
+.\setup.ps1</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Configure API keys in <code>.env</code></strong>
+        <pre>OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxxxxxx
+
+# Optional
+TAVILY_API_KEY=tvly-xxxxxxxxxxxxxxxx
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...</pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Launch the application</strong> — choose one of three modes (see Running section below)
+      </div>
+    </li>
+  </ol>
+
+  <h3 style="margin-top:1.5rem">Running the Application</h3>
+  <div class="card" style="margin-bottom:.85rem">
+    <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent);margin-bottom:.4rem">OPTION A — Electron Desktop (recommended for demos)</div>
+    <pre style="margin:0">cd frontend
+npm run electron:dev</pre>
+  </div>
+  <div class="card" style="margin-bottom:.85rem">
+    <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent);margin-bottom:.4rem">OPTION B — Web browser (two terminals)</div>
+    <pre style="margin:0"># Terminal 1 — backend
+uv run uvicorn backend.api.app:app --host 127.0.0.1 --port 8004 --reload
+
+# Terminal 2 — frontend  (http://localhost:5176)
+cd frontend && npm run dev</pre>
+  </div>
+  <div class="card">
+    <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent);margin-bottom:.4rem">OPTION C — API only / headless</div>
+    <pre style="margin:0">uv run uvicorn backend.api.app:app --host 0.0.0.0 --port 8004
+curl http://127.0.0.1:8004/health</pre>
+  </div>
+
+  <h3 style="margin-top:1.5rem">CLI Mode (no UI needed)</h3>
+  <div class="callout">
+    <strong>Note:</strong> The Human-in-the-Loop approval gate is bypassed in CLI mode. Final postmortem prints to stdout.
+  </div>
+  <pre>uv run python backend/main.py --scenario stripe_outage
+uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4o-mini</pre>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Scenario</th><th>Vendor</th><th>Severity</th></tr>
+      <tr><td><code>stripe_outage</code></td><td>Stripe</td><td>P1</td></tr>
+      <tr><td><code>aws_s3_degradation</code></td><td>AWS</td><td>P2</td></tr>
+      <tr><td><code>twilio_sms_delay</code></td><td>Twilio</td><td>P2</td></tr>
+      <tr><td><code>cloudflare_dns_failure</code></td><td>Cloudflare</td><td>P2</td></tr>
+      <tr><td><code>github_actions_slow</code></td><td>GitHub</td><td>P3</td></tr>
+      <tr><td><code>sendgrid_email_bounce</code></td><td>SendGrid</td><td>P2</td></tr>
+      <tr><td><code>pagerduty_alert_delay</code></td><td>PagerDuty</td><td>P3</td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Model Selection</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Model</th><th>Cost / Run</th><th>Notes</th></tr>
+      <tr><td><code>google/gemini-2.5-flash</code></td><td>~$0.004</td><td>Default — best for demos</td></tr>
+      <tr><td><code>openai/gpt-4o-mini</code></td><td>~$0.01</td><td>Better reasoning, still cheap</td></tr>
+      <tr><td><code>deepseek/deepseek-chat</code></td><td>~$0.006</td><td>Strong reasoning, very cheap</td></tr>
+      <tr><td><code>openai/gpt-4o</code></td><td>~$0.08</td><td>Production-grade quality</td></tr>
+      <tr><td><code>anthropic/claude-3.5-sonnet</code></td><td>~$0.12</td><td>Best output quality</td></tr>
+    </table>
+  </div>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ WORKFLOW DIAGRAM ══════════════ -->
+<section id="workflow">
+  <div class="section-label">03 — How It Works</div>
+  <h2>Agent Workflow Diagram</h2>
+  <p>The pipeline is a stateful LangGraph DAG. Every node reads and writes a single shared <code>IncidentState</code> object. Conditional routing functions inspect state flags after each node to decide the next hop.</p>
+
+  <div class="diagram-scroll">
+    <svg viewBox="0 0 900 640" xmlns="http://www.w3.org/2000/svg" width="900" style="min-width:820px;display:block;margin:0 auto">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#00d4ff"/>
+        </marker>
+        <marker id="arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#00e676"/>
+        </marker>
+        <marker id="arr-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/>
+        </marker>
+        <marker id="arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#ff5252"/>
+        </marker>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Background grid -->
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M40,0 L0,0 0,40" fill="none" stroke="#1e2d42" stroke-width=".4"/>
+      </pattern>
+      <rect width="900" height="640" fill="url(#grid)" opacity=".5"/>
+
+      <!-- ── NODE DEFINITIONS ── -->
+      <!-- INPUT -->
+      <rect x="370" y="18" width="160" height="44" rx="8" fill="#0d1420" stroke="#00d4ff" stroke-width="1.5"/>
+      <text x="450" y="36" text-anchor="middle" fill="#00d4ff" font-family="JetBrains Mono,monospace" font-size="9.5" font-weight="700" letter-spacing="1">INPUT</text>
+      <text x="450" y="52" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Logs &amp; Metrics</text>
+
+      <!-- TRIAGE -->
+      <rect x="340" y="100" width="220" height="52" rx="8" fill="#111927" stroke="#00d4ff" stroke-width="1.5" filter="url(#glow)"/>
+      <text x="450" y="122" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">① Triage Agent</text>
+      <text x="450" y="140" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Vendor • Severity • Slack alert</text>
+
+      <!-- RAG CACHE -->
+      <rect x="340" y="192" width="220" height="52" rx="8" fill="#111927" stroke="#7b5ea7" stroke-width="1.5"/>
+      <text x="450" y="214" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">② RAG Cache Lookup</text>
+      <text x="450" y="232" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">ChromaDB similarity search</text>
+
+      <!-- fast-path label -->
+      <text x="582" y="232" fill="#00e676" font-family="JetBrains Mono,monospace" font-size="8.5">conf ≥ 0.85</text>
+
+      <!-- RCA -->
+      <rect x="340" y="293" width="220" height="52" rx="8" fill="#111927" stroke="#00d4ff" stroke-width="1.5"/>
+      <text x="450" y="315" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">③ RCA Agent</text>
+      <text x="450" y="333" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Hypotheses • routing flags</text>
+
+      <!-- BROWSER -->
+      <rect x="100" y="390" width="190" height="52" rx="8" fill="#111927" stroke="#00d4ff" stroke-width="1.5"/>
+      <text x="195" y="412" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">④ Browser Agent</text>
+      <text x="195" y="430" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Playwright status page scraper</text>
+
+      <!-- WEB SEARCH -->
+      <rect x="355" y="390" width="190" height="52" rx="8" fill="#111927" stroke="#00d4ff" stroke-width="1.5"/>
+      <text x="450" y="412" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">⑤ Web Search Agent</text>
+      <text x="450" y="430" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Tavily / DuckDuckGo</text>
+
+      <!-- SELF-HEAL -->
+      <rect x="618" y="293" width="190" height="52" rx="8" fill="#111927" stroke="#ff6b35" stroke-width="1.5"/>
+      <text x="713" y="315" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">⑧ Self-Heal Agent</text>
+      <text x="713" y="333" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Retry × 3 • reroute</text>
+
+      <!-- HITL GATE -->
+      <!-- diamond shape -->
+      <polygon points="450,480 510,515 450,550 390,515" fill="#111927" stroke="#ffd740" stroke-width="1.8"/>
+      <text x="450" y="511" text-anchor="middle" fill="#ffd740" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">HUMAN</text>
+      <text x="450" y="525" text-anchor="middle" fill="#ffd740" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">APPROVAL</text>
+
+      <!-- REMEDIATION -->
+      <rect x="340" y="580" width="220" height="50" rx="8" fill="#111927" stroke="#ff6b35" stroke-width="1.5"/>
+      <text x="450" y="601" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">⑥ Remediation Agent</text>
+      <text x="450" y="619" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Containment plan • Slack notify</text>
+
+      <!-- REPORTER -->
+      <rect x="618" y="465" width="190" height="52" rx="8" fill="#111927" stroke="#00e676" stroke-width="1.5"/>
+      <text x="713" y="487" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">⑦ Reporter Agent</text>
+      <text x="713" y="505" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Markdown postmortem</text>
+
+      <!-- STORE + END -->
+      <rect x="618" y="556" width="190" height="42" rx="8" fill="#111927" stroke="#7b5ea7" stroke-width="1.5"/>
+      <text x="713" y="573" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">Store to RAG</text>
+      <text x="713" y="588" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Persist for future pattern match</text>
+
+      <!-- END -->
+      <rect x="660" y="618" width="105" height="16" rx="5" fill="#0d1420" stroke="#00d4ff" stroke-width="1"/>
+      <text x="713" y="630" text-anchor="middle" fill="#00d4ff" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" letter-spacing="2">END</text>
+
+      <!-- ── EDGES ── -->
+      <!-- Input → Triage -->
+      <line x1="450" y1="62" x2="450" y2="98" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Triage → RAG -->
+      <line x1="450" y1="152" x2="450" y2="190" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- RAG → RCA (low confidence path) -->
+      <line x1="450" y1="244" x2="450" y2="291" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="455" y="270" fill="#5a7090" font-family="JetBrains Mono,monospace" font-size="8">conf &lt; 0.85</text>
+
+      <!-- RAG fast path → HITL (right side arc) -->
+      <path d="M560,218 Q660,218 660,370 Q660,470 510,515" stroke="#00e676" stroke-width="1.5" fill="none" stroke-dasharray="6 3" marker-end="url(#arr-g)"/>
+
+      <!-- RCA → Browser -->
+      <path d="M380,345 Q280,345 280,416 Q280,442 290,442" stroke="#00d4ff" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+      <text x="218" y="370" fill="#5a7090" font-family="JetBrains Mono,monospace" font-size="8">needs_browser</text>
+
+      <!-- RCA → Web Search -->
+      <line x1="450" y1="345" x2="450" y2="388" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="455" y="370" fill="#5a7090" font-family="JetBrains Mono,monospace" font-size="8">needs_web_search</text>
+
+      <!-- RCA → Self-Heal (error) -->
+      <line x1="560" y1="319" x2="616" y2="319" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-o)"/>
+      <text x="570" y="312" fill="#ff6b35" font-family="JetBrains Mono,monospace" font-size="8">error</text>
+
+      <!-- Browser → HITL -->
+      <path d="M195,442 Q195,480 390,515" stroke="#00d4ff" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+      <!-- Web Search → HITL -->
+      <line x1="450" y1="442" x2="450" y2="478" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- HITL approve → Remediation -->
+      <line x1="450" y1="550" x2="450" y2="578" stroke="#ffd740" stroke-width="1.8" marker-end="url(#arr)"/>
+      <text x="454" y="568" fill="#ffd740" font-family="JetBrains Mono,monospace" font-size="8">approved</text>
+
+      <!-- HITL reject → Reporter -->
+      <path d="M510,515 Q590,515 618,491" stroke="#ff5252" stroke-width="1.5" stroke-dasharray="5 3" fill="none" marker-end="url(#arr-r)"/>
+      <text x="545" y="506" fill="#ff5252" font-family="JetBrains Mono,monospace" font-size="8">rejected</text>
+
+      <!-- Remediation → Reporter -->
+      <path d="M560,605 Q590,605 618,491" stroke="#00e676" stroke-width="1.5" fill="none" marker-end="url(#arr-g)"/>
+
+      <!-- Reporter → Store -->
+      <line x1="713" y1="517" x2="713" y2="554" stroke="#00e676" stroke-width="1.5" marker-end="url(#arr-g)"/>
+
+      <!-- Store → END -->
+      <line x1="713" y1="598" x2="713" y2="616" stroke="#7b5ea7" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Self-Heal → back to RCA -->
+      <path d="M618,325 Q580,280 562,315" stroke="#ff6b35" stroke-width="1.3" stroke-dasharray="5 3" fill="none" marker-end="url(#arr-o)"/>
+      <text x="575" y="285" fill="#ff6b35" font-family="JetBrains Mono,monospace" font-size="8">reroute</text>
+
+      <!-- Legend -->
+      <rect x="22" y="550" width="240" height="78" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="34" y="567" fill="#5a7090" font-family="JetBrains Mono,monospace" font-size="8.5" font-weight="700">LEGEND</text>
+      <line x1="34" y1="578" x2="58" y2="578" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="64" y="582" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Normal flow</text>
+      <line x1="34" y1="594" x2="58" y2="594" stroke="#00e676" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arr-g)"/>
+      <text x="64" y="598" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Fast path (RAG ≥ 0.85)</text>
+      <line x1="34" y1="610" x2="58" y2="610" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-o)"/>
+      <text x="64" y="614" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Error / self-heal</text>
+      <line x1="34" y1="622" x2="58" y2="622" stroke="#ffd740" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="64" y="626" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Human approval gate</text>
+    </svg>
+  </div>
+
+  <h3 style="margin-top:2rem">End-to-End Data Flow</h3>
+  <ol class="steps">
+    <li><div><strong>Alert ingestion</strong> — POST <code>/api/incident</code> with <code>scenario_type</code> (or upload a JSON with <code>raw_logs</code> + <code>raw_metrics</code>)</div></li>
+    <li><div><strong>Triage Agent</strong> — parses logs, suspects vendor, assigns severity, fires Slack "New Incident" alert</div></li>
+    <li><div><strong>RAG Cache Lookup</strong> — ChromaDB similarity search. Confidence ≥ 0.85 → skip RCA/Browser/WebSearch, jump to remediation gate</div></li>
+    <li><div><strong>RCA Agent</strong> — generates hypotheses, sets routing flags (<code>needs_browser</code>, <code>needs_web_search</code>, <code>needs_human_escalation</code>)</div></li>
+    <li><div><strong>Browser Agent</strong> (if flagged) — Playwright scrapes official vendor status page</div></li>
+    <li><div><strong>Web Search Agent</strong> (if flagged) — Tavily / DuckDuckGo community confirmation</div></li>
+    <li><div><strong>HITL Gate</strong> — graph pauses, frontend shows <code>ApprovalCard</code> with full investigation context. User approves, rejects, or requests changes</div></li>
+    <li><div><strong>Remediation Agent</strong> — drafts containment plan, fires Slack remediation alert</div></li>
+    <li><div><strong>Reporter Agent</strong> — synthesises full Markdown postmortem</div></li>
+    <li><div><strong>Store to RAG</strong> — resolved incident saved to ChromaDB for future fast-path recall</div></li>
+  </ol>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ AGENTS ══════════════ -->
+<section id="agents">
+  <div class="section-label">04 — Agent Swarm</div>
+  <h2>The 8 Agents</h2>
+  <p>Each agent is an <code>async</code> function: reads <code>IncidentState</code> → emits <code>agent_start</code> SSE → calls LLM with structured JSON prompt → parses response → emits <code>agent_end</code> + <code>cost_update</code> SSE → returns partial state update.</p>
+
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-num">AGENT 01</div>
+      <h3>Triage Agent</h3>
+      <p>Parses raw logs/metrics. Identifies suspected vendor, severity (P1–P4), affected service, and structured events. Sends initial Slack alert.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 02</div>
+      <h3>RAG Cache</h3>
+      <p>Searches historical incident memory (ChromaDB + JSON fallback). Returns confidence score. High confidence → skip directly to remediation.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 03</div>
+      <h3>RCA Agent</h3>
+      <p>Generates investigation hypotheses with confidence scores. Sets routing flags to determine if browser scraping, web search, or human escalation is needed.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 04</div>
+      <h3>Browser Agent</h3>
+      <p>Uses Playwright/Stagehand to navigate the vendor's official status page and extract live incident data. Falls back to mock data if Playwright is unavailable.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 05</div>
+      <h3>Web Search Agent</h3>
+      <p>Queries Tavily (or DuckDuckGo fallback) for community and social media confirmation. Passes results to LLM for synthesis.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 06</div>
+      <h3>Remediation Agent</h3>
+      <p>Node behind the HITL gate. Checks approval status. If approved, calls LLM for containment steps and recommendations. Sends remediation Slack alert.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 07</div>
+      <h3>Reporter Agent</h3>
+      <p>Synthesises all findings into a professional Markdown postmortem: summary, timeline, impact, RCA, remediation steps, and long-term recommendations.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 08</div>
+      <h3>Self-Heal Agent</h3>
+      <p>Intercepts any node failure. Retries up to 3×, reroutes around broken tools. Escalates to Reporter if retry limit exceeded.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.8rem">LangGraph Routing Logic</h3>
+  <pre>
+# After RAG lookup
+def route_after_rag(state):
+    if state.get("last_error"):           return "self_heal"
+    if state["rag_confidence"] >= 0.85:   return "remediation"   # fast path
+    return "rca"
+
+# After RCA
+def route_after_rca(state):
+    if state.get("last_error"):               return "self_heal"
+    if state.get("needs_human_escalation"):   return "reporter"  # skip remediation
+    if state.get("needs_browser"):            return "browser"
+    if state.get("needs_web_search"):         return "web_search"
+    return "remediation"
+
+# After Self-Heal (retry routing)
+def route_after_self_heal(state):
+    if state.get("needs_human_escalation"):   return "reporter"
+    if state.get("needs_web_search") and not state.get("needs_browser"):
+        return "web_search"
+    if state.get("needs_browser"):            return "browser"
+    return "rca"</pre>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ MINDMAP ══════════════ -->
+<section id="mindmap">
+  <div class="section-label">05 — Mind Map</div>
+  <h2>System Architecture Mind Map</h2>
+  <p>Full system decomposition — all layers, modules, and concepts at a glance.</p>
+
+  <div class="mindmap-scroll">
+    <svg viewBox="0 0 1000 720" xmlns="http://www.w3.org/2000/svg" width="1000" style="min-width:900px;display:block;margin:0 auto">
+      <defs>
+        <!-- gradient for center -->
+        <radialGradient id="cg" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#1a2a44"/>
+          <stop offset="100%" stop-color="#0d1420"/>
+        </radialGradient>
+      </defs>
+
+      <!-- faint grid -->
+      <pattern id="mg" width="60" height="60" patternUnits="userSpaceOnUse">
+        <circle cx="30" cy="30" r="1" fill="#1e2d42" opacity=".4"/>
+      </pattern>
+      <rect width="1000" height="720" fill="url(#mg)"/>
+
+      <!-- ── CENTER NODE ── -->
+      <ellipse cx="500" cy="360" rx="80" ry="44" fill="url(#cg)" stroke="#00d4ff" stroke-width="2"/>
+      <text x="500" y="355" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="13" font-weight="700">AegisOps</text>
+      <text x="500" y="372" text-anchor="middle" fill="#00d4ff" font-family="JetBrains Mono,monospace" font-size="9">Vendor Outage AI</text>
+
+      <!-- ───────────────────────────────────────────
+           BRANCH MACRO: helper — we hand-draw each
+      ─────────────────────────────────────────────── -->
+
+      <!-- ═══ BRANCH 1 — AGENTS (top-left) ═══ -->
+      <line x1="427" y1="330" x2="280" y2="170" stroke="#00d4ff" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="242" cy="150" rx="62" ry="26" fill="#111927" stroke="#00d4ff" stroke-width="1.4"/>
+      <text x="242" y="147" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">Agents</text>
+      <text x="242" y="161" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">8 specialised nodes</text>
+      <!-- children -->
+      <line x1="185" y1="140" x2="118" y2="90" stroke="#00d4ff" stroke-width="1" opacity=".4"/>
+      <rect x="20" y="72" width="96" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="68" y="88" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Triage</text>
+      <text x="68" y="100" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">P1–P4 severity</text>
+
+      <line x1="185" y1="148" x2="118" y2="128" stroke="#00d4ff" stroke-width="1" opacity=".4"/>
+      <rect x="20" y="114" width="96" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="68" y="130" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">RAG Cache</text>
+      <text x="68" y="142" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">ChromaDB lookup</text>
+
+      <line x1="185" y1="158" x2="118" y2="166" stroke="#00d4ff" stroke-width="1" opacity=".4"/>
+      <rect x="20" y="152" width="96" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="68" y="168" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">RCA Agent</text>
+      <text x="68" y="180" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Hypotheses + routing</text>
+
+      <line x1="200" y1="170" x2="148" y2="210" stroke="#00d4ff" stroke-width="1" opacity=".4"/>
+      <rect x="50" y="196" width="96" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="98" y="212" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Browser Agent</text>
+      <text x="98" y="224" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Playwright scraper</text>
+
+      <line x1="220" y1="174" x2="194" y2="218" stroke="#00d4ff" stroke-width="1" opacity=".4"/>
+      <rect x="96" y="204" width="96" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="144" y="220" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Web Search</text>
+      <text x="144" y="232" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Tavily / DDG</text>
+
+      <line x1="248" y1="174" x2="248" y2="224" stroke="#ff6b35" stroke-width="1" opacity=".4"/>
+      <rect x="200" y="224" width="96" height="36" rx="6" fill="#0d1420" stroke="#ff6b35" stroke-width="1.2"/>
+      <text x="248" y="240" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Self-Heal</text>
+      <text x="248" y="252" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Retry ×3</text>
+
+      <!-- ═══ BRANCH 2 — BACKEND (top-right) ═══ -->
+      <line x1="573" y1="330" x2="700" y2="170" stroke="#7b5ea7" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="740" cy="152" rx="68" ry="26" fill="#111927" stroke="#7b5ea7" stroke-width="1.4"/>
+      <text x="740" y="149" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">Backend</text>
+      <text x="740" y="163" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">FastAPI + LangGraph</text>
+
+      <line x1="790" y1="140" x2="840" y2="92" stroke="#7b5ea7" stroke-width="1" opacity=".4"/>
+      <rect x="842" y="72" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="892" y="88" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">FastAPI routes</text>
+      <text x="892" y="100" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">14 endpoints</text>
+
+      <line x1="800" y1="150" x2="842" y2="134" stroke="#7b5ea7" stroke-width="1" opacity=".4"/>
+      <rect x="842" y="116" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="892" y="132" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">SSE Streaming</text>
+      <text x="892" y="144" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Real-time events</text>
+
+      <line x1="800" y1="160" x2="842" y2="174" stroke="#7b5ea7" stroke-width="1" opacity=".4"/>
+      <rect x="842" y="160" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="892" y="176" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Auth Middleware</text>
+      <text x="892" y="188" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">API key optional</text>
+
+      <line x1="790" y1="170" x2="842" y2="214" stroke="#7b5ea7" stroke-width="1" opacity=".4"/>
+      <rect x="842" y="200" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="892" y="216" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Secrets Resolver</text>
+      <text x="892" y="228" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Client vs server key</text>
+
+      <!-- ═══ BRANCH 3 — STORAGE (right) ═══ -->
+      <line x1="580" y1="360" x2="730" y2="360" stroke="#00e676" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="790" cy="360" rx="68" ry="26" fill="#111927" stroke="#00e676" stroke-width="1.4"/>
+      <text x="790" y="357" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">Storage</text>
+      <text x="790" y="371" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Persistence layer</text>
+
+      <line x1="858" y1="350" x2="898" y2="304" stroke="#00e676" stroke-width="1" opacity=".4"/>
+      <rect x="900" y="284" width="88" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="944" y="300" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">runs.db</text>
+      <text x="944" y="312" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Run metadata</text>
+
+      <line x1="858" y1="358" x2="898" y2="358" stroke="#00e676" stroke-width="1" opacity=".4"/>
+      <rect x="900" y="340" width="88" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="944" y="356" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">checkpoints.db</text>
+      <text x="944" y="368" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">LangGraph state</text>
+
+      <line x1="858" y1="368" x2="898" y2="414" stroke="#00e676" stroke-width="1" opacity=".4"/>
+      <rect x="900" y="396" width="88" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="944" y="412" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">ChromaDB</text>
+      <text x="944" y="424" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">RAG vectors</text>
+
+      <!-- ═══ BRANCH 4 — FRONTEND (bottom-right) ═══ -->
+      <line x1="560" y1="390" x2="680" y2="530" stroke="#c09aff" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="724" cy="556" rx="72" ry="26" fill="#111927" stroke="#c09aff" stroke-width="1.4"/>
+      <text x="724" y="553" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">Frontend</text>
+      <text x="724" y="567" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">React 19 + Electron</text>
+
+      <line x1="784" y1="564" x2="826" y2="540" stroke="#c09aff" stroke-width="1" opacity=".4"/>
+      <rect x="828" y="522" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="878" y="538" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">3D Topology</text>
+      <text x="878" y="550" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Three.js graph viz</text>
+
+      <line x1="792" y1="570" x2="826" y2="574" stroke="#c09aff" stroke-width="1" opacity=".4"/>
+      <rect x="828" y="558" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="878" y="574" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">ApprovalCard</text>
+      <text x="878" y="586" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">HITL UI component</text>
+
+      <line x1="780" y1="578" x2="824" y2="610" stroke="#c09aff" stroke-width="1" opacity=".4"/>
+      <rect x="826" y="594" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="876" y="610" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Agent Feed</text>
+      <text x="876" y="622" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Live SSE events</text>
+
+      <!-- ═══ BRANCH 5 — TOOLS (bottom-left) ═══ -->
+      <line x1="440" y1="396" x2="310" y2="530" stroke="#ffd740" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="268" cy="558" rx="68" ry="26" fill="#111927" stroke="#ffd740" stroke-width="1.4"/>
+      <text x="268" y="555" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">Tools</text>
+      <text x="268" y="569" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">LangChain @tool</text>
+
+      <line x1="205" y1="556" x2="160" y2="520" stroke="#ffd740" stroke-width="1" opacity=".4"/>
+      <rect x="60" y="502" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="109" y="518" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Slack Webhook</text>
+      <text x="109" y="530" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Incident alerts</text>
+
+      <line x1="202" y1="566" x2="160" y2="560" stroke="#ffd740" stroke-width="1" opacity=".4"/>
+      <rect x="60" y="544" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="109" y="560" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Vendor Status</text>
+      <text x="109" y="572" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Playwright tool</text>
+
+      <line x1="208" y1="578" x2="165" y2="598" stroke="#ffd740" stroke-width="1" opacity=".4"/>
+      <rect x="66" y="582" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="115" y="598" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Web Search</text>
+      <text x="115" y="610" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Tavily / DuckDuckGo</text>
+
+      <!-- ═══ BRANCH 6 — HITL (left) ═══ -->
+      <line x1="420" y1="360" x2="270" y2="360" stroke="#ffd740" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="208" cy="360" rx="68" ry="26" fill="#111927" stroke="#ffd740" stroke-width="1.4"/>
+      <text x="208" y="357" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">HITL Design</text>
+      <text x="208" y="371" text-anchor="middle" fill="#ffd740" font-family="Inter,sans-serif" font-size="8">Human approval gate</text>
+
+      <line x1="142" y1="352" x2="90" y2="318" stroke="#ffd740" stroke-width="1" opacity=".4"/>
+      <rect x="0" y="300" width="88" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="44" y="316" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">interrupt_before</text>
+      <text x="44" y="328" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">remediation node</text>
+
+      <line x1="140" y1="360" x2="90" y2="360" stroke="#ffd740" stroke-width="1" opacity=".4"/>
+      <rect x="0" y="342" width="88" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="44" y="358" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">SQLite pause</text>
+      <text x="44" y="370" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">survives restart</text>
+
+      <line x1="142" y1="370" x2="90" y2="404" stroke="#ffd740" stroke-width="1" opacity=".4"/>
+      <rect x="0" y="386" width="88" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="44" y="402" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">approve/reject</text>
+      <text x="44" y="414" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">POST /resume</text>
+
+      <!-- ═══ BRANCH 7 — RAG MEMORY (top-center) ═══ -->
+      <line x1="480" y1="316" x2="420" y2="208" stroke="#00e676" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="398" cy="184" rx="72" ry="26" fill="#111927" stroke="#00e676" stroke-width="1.4"/>
+      <text x="398" y="181" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">RAG Memory</text>
+      <text x="398" y="195" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Incident knowledge base</text>
+
+      <line x1="340" y1="178" x2="296" y2="150" stroke="#00e676" stroke-width="1" opacity=".4"/>
+      <rect x="196" y="132" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="245" y="148" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">ChromaDB</text>
+      <text x="245" y="160" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Vector similarity</text>
+
+      <line x1="368" y1="170" x2="368" y2="126" stroke="#00e676" stroke-width="1" opacity=".4"/>
+      <rect x="318" y="88" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="367" y="104" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">JSON fallback</text>
+      <text x="367" y="116" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">No ChromaDB needed</text>
+
+      <line x1="420" y1="168" x2="454" y2="134" stroke="#00e676" stroke-width="1" opacity=".4"/>
+      <rect x="444" y="96" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="493" y="112" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Fast-path skip</text>
+      <text x="493" y="124" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">conf ≥ 0.85</text>
+
+      <!-- ═══ BRANCH 8 — COST TRACKING (bottom-center) ═══ -->
+      <line x1="520" y1="396" x2="560" y2="520" stroke="#ff6b35" stroke-width="1.6" opacity=".6"/>
+      <ellipse cx="584" cy="548" rx="72" ry="26" fill="#111927" stroke="#ff6b35" stroke-width="1.4"/>
+      <text x="584" y="545" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="10" font-weight="700">Observability</text>
+      <text x="584" y="559" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Cost + tokens + SSE</text>
+
+      <line x1="556" y1="570" x2="524" y2="606" stroke="#ff6b35" stroke-width="1" opacity=".4"/>
+      <rect x="424" y="588" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="473" y="604" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Per-agent cost</text>
+      <text x="473" y="616" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">USD + tokens live</text>
+
+      <line x1="584" y1="574" x2="584" y2="606" stroke="#ff6b35" stroke-width="1" opacity=".4"/>
+      <rect x="534" y="588" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="583" y="604" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">cost_update SSE</text>
+      <text x="583" y="616" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Streamed to UI</text>
+
+      <line x1="614" y1="566" x2="648" y2="598" stroke="#ff6b35" stroke-width="1" opacity=".4"/>
+      <rect x="648" y="582" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
+      <text x="697" y="598" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">GET /cost</text>
+      <text x="697" y="610" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Endpoint summary</text>
+    </svg>
+  </div>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ API ══════════════ -->
+<section id="api">
+  <div class="section-label">06 — API Reference</div>
+  <h2>HTTP Endpoints</h2>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td><code>GET</code></td><td><code>/health</code></td><td>Server status + config flags (no auth)</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/incident/scenarios</code></td><td>List available simulation scenarios</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/incident</code></td><td>Start a new investigation run</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/incident/{run_id}</code></td><td>Run status + final report</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/incident/{run_id}/stream</code></td><td>SSE stream of live agent events</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/incident/{run_id}/resume</code></td><td>Resume paused run with HITL approval</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/incident/{run_id}/cost</code></td><td>Token and USD cost summary</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/incident/{run_id}/chat</code></td><td>AI assistant Q&A about the incident</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/history</code></td><td>List past runs from SQLite (last 100)</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/history/{run_id}/report</code></td><td>Full Markdown postmortem for a past run</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/history/{run_id}</code></td><td>Delete a run from history</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/rag/entries</code></td><td>List all RAG knowledge base entries</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/rag/entries/{incident_id}</code></td><td>Remove one incident from knowledge base</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/rag/clear</code></td><td>Clear entire knowledge base</td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Example: Start a run</h3>
+  <pre>curl -X POST http://127.0.0.1:8004/api/incident \
+  -H "Content-Type: application/json" \
+  -d '{"scenario_type": "stripe_outage", "llm_model": "google/gemini-2.5-flash"}'
+# → {"run_id": "RUN-XXXXXXXX", "status": "pending"}</pre>
+
+  <h3 style="margin-top:1rem">Example: Approve the remediation plan</h3>
+  <pre>curl -X POST http://127.0.0.1:8004/api/incident/RUN-XXXXXXXX/resume \
+  -H "Content-Type: application/json" \
+  -d '{"approval": {"status": "approved", "judge_name": "Admin", "comments": "Proceed with failover."}}'</pre>
+
+  <h3 style="margin-top:1rem">SSE Event Types</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Event</th><th>When</th></tr>
+      <tr><td><code>phase_change</code></td><td>Each pipeline phase transition</td></tr>
+      <tr><td><code>agent_start</code> / <code>agent_end</code></td><td>Agent begins / finishes work</td></tr>
+      <tr><td><code>tool_start</code> / <code>tool_end</code></td><td>Tool call begins / completes</td></tr>
+      <tr><td><code>cost_update</code></td><td>After every LLM call — tokens + USD</td></tr>
+      <tr><td><code>approval_context</code></td><td>Graph pauses for HITL — full investigation context</td></tr>
+      <tr><td><code>report</code></td><td>Final Markdown postmortem ready</td></tr>
+      <tr><td><code>done</code></td><td>Pipeline complete</td></tr>
+      <tr><td><code>error</code></td><td>Pipeline failure</td></tr>
+    </table>
+  </div>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ DEPLOY ══════════════ -->
+<section id="deploy">
+  <div class="section-label">07 — Production Deploy</div>
+  <h2>Docker Deployment</h2>
+
+  <pre>docker build -t aegisops .
+docker run -p 8004:8004 \
+  --env-file .env \
+  -v $(pwd)/data:/app/data \
+  aegisops</pre>
+
+  <div class="callout">
+    The <code>-v</code> flag mounts the <code>data/</code> directory so SQLite run history and incident memory persist between container restarts.
+  </div>
+
+  <h3 style="margin-top:1.5rem">Production Checklist</h3>
+  <ul class="checklist">
+    <li><code>OPENROUTER_API_KEY</code> set via secrets manager — not hardcoded in <code>.env</code></li>
+    <li><code>INCIDENT_API_KEY</code> set to a strong random string (protects all <code>/api/incident/*</code> routes)</li>
+    <li><code>ALLOW_CLIENT_API_KEYS=false</code> — API keys stay server-side only</li>
+    <li><code>data/</code> mounted as a persistent volume (survives container restart)</li>
+    <li>Reverse proxy (nginx / Caddy) with TLS termination in front of port 8004</li>
+    <li>Browser Agent container has ≥ 2 GB RAM available (Playwright requirement)</li>
+    <li>Run <code>uv run pytest tests/ -v</code> in CI before every deploy</li>
+  </ul>
+
+  <h3 style="margin-top:1.5rem">All Environment Variables</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Variable</th><th>Default</th><th>Required?</th><th>Description</th></tr>
+      <tr><td><code>OPENROUTER_API_KEY</code></td><td>—</td><td><span class="req">Yes</span></td><td>Powers all LLM agents</td></tr>
+      <tr><td><code>OPENROUTER_MODEL</code></td><td><code>google/gemini-2.5-flash</code></td><td><span class="opt">No</span></td><td>Default LLM model</td></tr>
+      <tr><td><code>OPENROUTER_BASE_URL</code></td><td>openrouter.ai/api/v1</td><td><span class="opt">No</span></td><td>Override for local LLMs (Ollama, etc.)</td></tr>
+      <tr><td><code>TAVILY_API_KEY</code></td><td>—</td><td><span class="opt">No</span></td><td>Enables Tavily real-time web search</td></tr>
+      <tr><td><code>SLACK_WEBHOOK_URL</code></td><td>—</td><td><span class="opt">No</span></td><td>Slack incident notifications</td></tr>
+      <tr><td><code>INCIDENT_API_KEY</code></td><td>—</td><td><span class="opt">Prod only</span></td><td>Protects <code>/api/incident/*</code> routes</td></tr>
+      <tr><td><code>ALLOW_CLIENT_API_KEYS</code></td><td><code>false</code></td><td><span class="opt">No</span></td><td><code>true</code> = dev/hackathon; <code>false</code> = production</td></tr>
+      <tr><td><code>CHECKPOINT_DB_PATH</code></td><td><code>data/checkpoints.db</code></td><td><span class="opt">No</span></td><td>LangGraph checkpoint SQLite path</td></tr>
+      <tr><td><code>RUNS_DB_PATH</code></td><td><code>data/runs.db</code></td><td><span class="opt">No</span></td><td>Run metadata SQLite path</td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Running Tests</h3>
+  <pre>uv run pytest tests/ -v
+# tests/test_api.py          — FastAPI endpoint unit tests
+# tests/test_production.py   — Production mode integration tests (auth, persistence)</pre>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ TROUBLESHOOT ══════════════ -->
+<section id="troubleshoot">
+  <div class="section-label">08 — Troubleshoot</div>
+  <h2>Common Errors & Fixes</h2>
+
+  <div class="callout warn">
+    Run the automated repair script first — it checks and auto-repairs missing venv, missing <code>.env</code>, port conflicts on 8004 / 5176, missing Playwright Chromium, and unwritable <code>data/</code> directory.
+    <pre style="margin-top:.6rem">./fix.sh        # macOS / Linux</pre>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+      <tr><td><code>Connectivity Alert: API server is offline</code></td><td>Backend not running</td><td><code>uv run uvicorn backend.api.app:app --port 8004 --reload</code></td></tr>
+      <tr><td><code>Telemetry Cockpit Locked</code></td><td>No OpenRouter key entered</td><td>Enter key in the UI right panel, or set in <code>.env</code></td></tr>
+      <tr><td><code>Document Blocked</code> on file upload</td><td>Non-JSON file uploaded</td><td>Only <code>.json</code> files with <code>raw_logs</code> or <code>raw_metrics</code> keys accepted</td></tr>
+      <tr><td>Electron window is blank</td><td>Vite not ready yet</td><td>Wait 3 seconds and press <kbd>Ctrl+R</kbd></td></tr>
+      <tr><td><code>openai_api_key</code> validation error</td><td>Python / LangChain version mismatch</td><td><code>uv sync</code> then restart backend</td></tr>
+      <tr><td>Port 8004 already in use</td><td>Another process on port</td><td><code>lsof -i :8004</code> then <code>kill &lt;PID&gt;</code></td></tr>
+      <tr><td><code>RuntimeError: LangGraph not initialized</code></td><td>Backend started without lifespan</td><td>Use <code>uvicorn</code> (not <code>python -m</code>) — lifespan handles init</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer>
+  Built for the <span>AI Accelerator Hackathon 2026</span> &nbsp;·&nbsp; Last updated June 13 2026
+</footer>
+
+</body>
+</html>

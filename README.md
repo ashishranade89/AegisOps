@@ -364,6 +364,7 @@ vendor_outage_investigator/
 | [API Reference](./docs/API.md) | All HTTP endpoints with request/response examples |
 | [Code Summary](./docs/CODE_SUMMARY.md) | Comprehensive module-level codebase documentation |
 | [Developer Handoff](./docs/CLAUDE_HANDOFF.md) | Quick context file for AI-assisted development sessions |
+| [AegisOps Documentation](./aegisops_docs.html) ([Rendered View](https://htmlpreview.github.io/?https://github.com/ashishranade89/AegisOps/blob/main/aegisops_docs.html)) | Comprehensive visual architecture and agent guide |
 | [Interactive Guide](./docs/INTERACTIVE_GUIDE.html) | Visual browser-based architecture tour |
 
 ---

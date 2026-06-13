@@ -1,7 +1,7 @@
 data/
 .env
 *.db
-docs/
+docs/  <-- Unignored to allow documentation on GitHub
 ./venv/
 __pycache__/
 *.pyc
@@ -28,4 +28,4 @@ node_modules/
 *.sublime-project
 *.tsbuildinfo
 incident_memory_db/
-/Volumes/MyData/AI Acclerator program documents/Hackthon/vendor_outage_investigator/docs
+# /Volumes/MyData/AI Acclerator program documents/Hackthon/vendor_outage_investigator/docs <-- Unignored

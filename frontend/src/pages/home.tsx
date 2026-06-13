@@ -334,26 +334,21 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   
   // Telemetry Ingestion Mode states
   const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload'>('standard');
-  const [selectedPreset, setSelectedPreset] = useState<string>('stripe_gateway_error.json');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [selectedPreset, _setSelectedPreset] = useState<string>('stripe_gateway_error.json');
+  const [_uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedData, setUploadedData] = useState<any | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [_uploadError, setUploadError] = useState<string | null>(null);
   
   // Custom alert threshold states
-  const [latencyThreshold, setLatencyThreshold] = useState<number>(1800);
-  const [errorThreshold, setErrorThreshold] = useState<number>(15);
-  const [autoTriggerAI, setAutoTriggerAI] = useState<boolean>(true);
-  const [slackNotifications, setSlackNotifications] = useState<boolean>(true);
-  const [settingsActiveMessage, setSettingsActiveMessage] = useState<string | null>(null);
-  const [expandedEventIdx, setExpandedEventIdx] = useState<number | null>(null);
-  const [showConfidenceDetail, setShowConfidenceDetail] = useState<boolean>(false);
-  const [copystate, setCopystate] = useState<boolean>(false);
+  const [latencyThreshold, _setLatencyThreshold] = useState<number>(1800);
+  const [errorThreshold, _setErrorThreshold] = useState<number>(15);
+  const [_expandedEventIdx, setExpandedEventIdx] = useState<number | null>(null);
+  const [_copystate, setCopystate] = useState<boolean>(false);
   const [isMitigating, setIsMitigating] = useState<boolean>(false);
-  const [mitigationLog, setMitigationLog] = useState<string[]>([]);
+  const [_mitigationLog, setMitigationLog] = useState<string[]>([]);
   
   // Telemetry live stream logs
-  const [logs, setLogs] = useState<string[]>([
+  const [_logs, setLogs] = useState<string[]>([
     "System initialized. Core Engine V3.4 active.",
     "Awaiting thresholds configuration & investigative triggers.",
     "All synthetic uptime checks reporting operational."
@@ -364,11 +359,11 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   
   // Real Investigation running states
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   
   // Immersive gateway scanning terminal simulation
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [_consoleLogs, setConsoleLogs] = useState<string[]>([]);
   
   const { runId, setRunId, setScenario } = useIncidentStore();
   const agentLogTimerRef = useRef<any>(null);
@@ -473,45 +468,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
       if (agentLogTimerRef.current) clearInterval(agentLogTimerRef.current);
     };
   }, [latencyThreshold, errorThreshold]);
-
-  // Handle uploaded JSON files
-  const handleFileUpload = (file: File) => {
-    setUploadError(null);
-    setUploadedFile(null);
-    setUploadedData(null);
-
-    if (!file.name.toLowerCase().endsWith('.json')) {
-      setUploadError("Document Blocked: Only structured JSON telemetry log files are allowed.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const json = JSON.parse(text);
-        if (!json.raw_logs && !json.raw_metrics) {
-          setUploadError("Document Blocked: JSON must contain 'raw_logs' or 'raw_metrics' structures.");
-          return;
-        }
-        setUploadedFile(file);
-        setUploadedData(json);
-        setLogs((prev) => [
-          `[INGESTION] Loaded custom telemetry payload file: ${file.name}`,
-          ...prev.slice(0, 10)
-        ]);
-      } catch (err) {
-        setUploadError("Document Blocked: Invalid JSON syntax.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(previewIncident.aiInsight.remediationCode);
-    setCopystate(true);
-    setTimeout(() => setCopystate(false), 2000);
-  };
 
   // Launch a real backend investigation and redirect to Live graph page
   const handleStart = async () => {

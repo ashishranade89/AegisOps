@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Key, Eye, EyeOff, ShieldCheck, ArrowRight, ExternalLink, Zap, Cpu, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { IntegrationAccordion } from './IntegrationAccordion'
+import { testSlack, testJira } from '../../lib/api'
 
 interface ApiKeyGateProps {
   openrouterKey: string
@@ -164,6 +166,35 @@ export function ApiKeyGate({
             />
             <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 8 }}>
               Enables live vendor status page scraping. Falls back to DuckDuckGo if not set.
+            </div>
+          </div>
+
+          {/* Integrations — Slack & Jira (both optional) */}
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
+              Integrations <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0, color: 'var(--ink-4)' }}>— optional</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <IntegrationAccordion
+                icon="🔔"
+                title="Slack"
+                fields={[
+                  { label: 'Bot Token', storageKey: 'slack_bot_token', placeholder: 'xoxb-...', type: 'password', testRequired: true, showTestButton: true },
+                  { label: 'Channel ID', storageKey: 'slack_channel_id', placeholder: 'C01AB2CD3EF', type: 'text', testRequired: true },
+                ]}
+                onTest={(values) => testSlack({ slack_bot_token: values.slack_bot_token, slack_channel_id: values.slack_channel_id })}
+              />
+              <IntegrationAccordion
+                icon="📋"
+                title="Jira"
+                fields={[
+                  { label: 'Base URL', storageKey: 'jira_base_url', placeholder: 'https://company.atlassian.net', type: 'text', testRequired: true },
+                  { label: 'Email', storageKey: 'jira_email', placeholder: 'you@company.com', type: 'text', testRequired: true },
+                  { label: 'API Token', storageKey: 'jira_api_token', placeholder: 'your-jira-api-token', type: 'password', testRequired: true, showTestButton: true },
+                  { label: 'Project Key', storageKey: 'jira_project_key', placeholder: 'OPS', type: 'text' },
+                ]}
+                onTest={(values) => testJira({ jira_base_url: values.jira_base_url, jira_email: values.jira_email, jira_api_token: values.jira_api_token })}
+              />
             </div>
           </div>
 

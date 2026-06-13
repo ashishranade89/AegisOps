@@ -10,6 +10,7 @@ import {
   Moon,
   Sun,
   PanelRight,
+  Shield,
   ShieldCheck,
   BookOpen,
   ServerCog,
@@ -36,10 +37,12 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <Link to="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div className="brand-mark" style={{ background: 'var(--primary-accent)', color: '#fff' }}>A</div>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #2563EB, #F43F5E)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Shield size={16} color="#fff" />
+        </div>
         <div>
           <div className="brand-name">AegisOps</div>
-          <div className="brand-sub">Outage Investigator</div>
+          <div className="brand-sub">Autonomous Incident Orchestrator</div>
         </div>
       </Link>
 

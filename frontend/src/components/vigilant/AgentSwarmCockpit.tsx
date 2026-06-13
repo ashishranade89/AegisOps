@@ -2,7 +2,7 @@ import React from 'react'
 import { Play } from 'lucide-react'
 import { ScenarioInfo } from '@/lib/api'
 import { IncidentState } from '@/types/vigilant'
-import { useIncidentStore } from '@/stores/incident-store'
+import { useIncidentStore, RunStatus } from '@/stores/incident-store'
 import RootCauseGraph from './RootCauseGraph'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,21 +20,96 @@ export interface AgentSwarmCockpitProps {
   loading: boolean
   loadingAnalysis: boolean
   cockpitLocked: boolean
-  error: string | null
   previewIncident: IncidentState
   onApplyMitigation: () => void
   isMitigating: boolean
-  mitigationLog: string[]
-  showConfidenceDetail: boolean
-  onToggleConfidenceDetail: () => void
-  copyState: boolean
-  onCopyCode: () => void
+}
+
+// ─── Module-level constants ────────────────────────────────────────────────────
+
+const STEPS = [
+  { num: 1, title: 'Select Scenario', subtitle: 'Choose incident type & telemetry mode' },
+  { num: 2, title: 'Launch Swarm', subtitle: 'Start autonomous agent cluster' },
+  { num: 3, title: 'Agent Analysis', subtitle: 'Triage · Correlate · Root Cause' },
+  { num: 4, title: 'RCA Report', subtitle: 'Root cause summary & confidence' },
+  { num: 5, title: 'Mitigation', subtitle: 'Apply remediation patch' },
+]
+
+const SWARM_AGENTS = [
+  { key: 'triage',      label: 'Triage Agent' },
+  { key: 'rag_search',  label: 'RAG Cache Lookup' },
+  { key: 'rca',         label: 'Root Cause Analyzer' },
+  { key: 'browser',     label: 'Browser Scraper Agent' },
+  { key: 'remediation', label: 'Remediation Agent' },
+  { key: 'reporter',    label: 'Incident Reporter' },
+]
+
+const NODE_TO_AGENT: Record<string, string> = {
+  triage:      'Triage Agent',
+  rag_search:  'RAG Cache Lookup',
+  rca:         'Root Cause Analyzer',
+  browser:     'Browser Scraper Agent',   // was 'Browser Scraper'
+  remediation: 'Remediation Agent',
+  reporter:    'Incident Reporter',
+}
+
+const MODES: { value: TelemetryMode; label: string }[] = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'preset', label: 'Preset' },
+  { value: 'upload', label: 'Upload JSON' },
+]
+
+// ─── StepItem style lookup tables ─────────────────────────────────────────────
+
+const STEP_NUM_STYLES: Record<StepState, React.CSSProperties> = {
+  done:   { background: 'rgba(16,185,129,.15)', color: '#10b981' },
+  active: { background: 'rgba(59,130,246,.18)', color: '#60a5fa' },
+  idle:   { background: '#0f172a',              color: '#334155' },
+}
+const STEP_TITLE_COLOR: Record<StepState, string> = {
+  done:   '#10b981',
+  active: '#93c5fd',
+  idle:   '#334155',
+}
+const STEP_ITEM_STYLE: Record<StepState, React.CSSProperties> = {
+  done:   { background: 'rgba(16,185,129,.04)' },
+  active: { background: 'rgba(59,130,246,.07)', border: '1px solid rgba(59,130,246,.12)' },
+  idle:   {},
+}
+
+// ─── VendorRow lookup tables ───────────────────────────────────────────────────
+
+const VENDOR_STATUS_COLOR: Record<'operational' | 'degraded' | 'outage', string> = {
+  operational: '#34d399',
+  degraded:    '#fbbf24',
+  outage:      '#f87171',
+}
+const VENDOR_STATUS_LABEL: Record<'operational' | 'degraded' | 'outage', string> = {
+  operational: 'OK',
+  degraded:    'Degraded',
+  outage:      'Outage',
+}
+
+// ─── AgentBadge styles ────────────────────────────────────────────────────────
+
+const AGENT_BADGE_STYLES: Record<'idle' | 'active' | 'done', React.CSSProperties> = {
+  idle:   { background: 'rgba(255,255,255,.03)', color: '#334155', border: '1px solid #0f172a' },
+  done:   { background: 'rgba(16,185,129,.08)',  color: '#34d399', border: '1px solid rgba(16,185,129,.15)' },
+  active: { background: 'rgba(245,158,11,.08)',  color: '#fbbf24', border: '1px solid rgba(245,158,11,.15)' },
+}
+
+// ─── Shared helpers ────────────────────────────────────────────────────────────
+
+function deriveConfidence(completedNodes: string[]): number | null {
+  if (completedNodes.length >= 4) return 94
+  if (completedNodes.length >= 2) return 72
+  return null
 }
 
 // ─── Step derivation ──────────────────────────────────────────────────────────
 
 function deriveActiveStep(
-  status: string,
+  status: RunStatus,
   loadingAnalysis: boolean,
   report: string,
   isMitigating: boolean,
@@ -57,30 +132,14 @@ interface StepItemProps {
 }
 
 function StepItem({ num, title, subtitle, state, isLast }: StepItemProps) {
-  const numStyles: Record<StepState, React.CSSProperties> = {
-    done: { background: 'rgba(16,185,129,.15)', color: '#10b981' },
-    active: { background: 'rgba(59,130,246,.18)', color: '#60a5fa' },
-    idle: { background: '#0f172a', color: '#334155' },
-  }
-  const titleColor: Record<StepState, string> = {
-    done: '#10b981',
-    active: '#93c5fd',
-    idle: '#334155',
-  }
-  const itemStyle: Record<StepState, React.CSSProperties> = {
-    done: { background: 'rgba(16,185,129,.04)' },
-    active: { background: 'rgba(59,130,246,.07)', border: '1px solid rgba(59,130,246,.12)' },
-    idle: {},
-  }
-
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 8px', borderRadius: 6, ...itemStyle[state] }}>
-        <div style={{ width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, flexShrink: 0, marginTop: 1, ...numStyles[state] }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 8px', borderRadius: 6, ...STEP_ITEM_STYLE[state] }}>
+        <div style={{ width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, flexShrink: 0, marginTop: 1, ...STEP_NUM_STYLES[state] }}>
           {state === 'done' ? '✓' : num}
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: titleColor[state], lineHeight: 1.2 }}>{title}</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: STEP_TITLE_COLOR[state], lineHeight: 1.2 }}>{title}</div>
           <div style={{ fontSize: 8, color: '#475569', marginTop: 1, lineHeight: 1.3 }}>{subtitle}</div>
         </div>
       </div>
@@ -94,8 +153,8 @@ function StepItem({ num, title, subtitle, state, isLast }: StepItemProps) {
 // ─── VendorRow ────────────────────────────────────────────────────────────────
 
 function VendorRow({ name, status }: { name: string; status: 'operational' | 'degraded' | 'outage' }) {
-  const col = { operational: '#34d399', degraded: '#fbbf24', outage: '#f87171' }[status]
-  const label = { operational: 'OK', degraded: 'Degraded', outage: 'Outage' }[status]
+  const col = VENDOR_STATUS_COLOR[status]
+  const label = VENDOR_STATUS_LABEL[status]
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 4px' }}>
       <span style={{ fontSize: 9.5, fontWeight: 600, color: '#64748b' }}>{name}</span>
@@ -108,14 +167,6 @@ function VendorRow({ name, status }: { name: string; status: 'operational' | 'de
 }
 
 // ─── LeftRail ─────────────────────────────────────────────────────────────────
-
-const STEPS = [
-  { num: 1, title: 'Select Scenario', subtitle: 'Choose incident type & telemetry mode' },
-  { num: 2, title: 'Launch Swarm', subtitle: 'Start autonomous agent cluster' },
-  { num: 3, title: 'Agent Analysis', subtitle: 'Triage · Correlate · Root Cause' },
-  { num: 4, title: 'RCA Report', subtitle: 'Root cause summary & confidence' },
-  { num: 5, title: 'Mitigation', subtitle: 'Apply remediation patch' },
-]
 
 function LeftRail({ activeStep, vendorHealth }: { activeStep: number; vendorHealth: IncidentState['vendorHealth'] }) {
   return (
@@ -155,12 +206,6 @@ interface ScenarioPickerProps {
 }
 
 function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, telemetryMode, onTelemetryModeChange, onLaunch, loading, loadingAnalysis, cockpitLocked, previewIncident }: ScenarioPickerProps) {
-  const MODES: { value: TelemetryMode; label: string }[] = [
-    { value: 'standard', label: 'Standard' },
-    { value: 'preset', label: 'Preset' },
-    { value: 'upload', label: 'Upload JSON' },
-  ]
-
   return (
     <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', height: '100%', gap: 10, padding: 16, background: 'var(--bg)' }}>
       {/* Top: scenario picker card */}
@@ -178,7 +223,7 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
                 style={{ flex: '1 0 120px', background: isSelected ? 'rgba(29,78,216,.06)' : '#02040a', border: `1px solid ${isSelected ? '#1d4ed8' : '#1e293b'}`, borderRadius: 6, padding: '8px 10px', textAlign: 'left', cursor: 'pointer' }}
               >
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#cbd5e1' }}>{s.name}</div>
-                <div style={{ fontSize: 8, color: '#475569', marginTop: 1 }}>{s.description.slice(0, 48)}</div>
+                <div style={{ fontSize: 8, color: '#475569', marginTop: 1 }}>{s.description.slice(0, 48) /* Truncate for card preview */}</div>
               </button>
             )
           })}
@@ -212,31 +257,13 @@ function ScenarioPicker({ scenarios, selectedScenarioType, onScenarioChange, tel
         <div style={{ position: 'absolute', top: 8, left: 10, zIndex: 10, fontSize: 8, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(245,158,11,.1)', color: '#fbbf24', border: '1px solid rgba(245,158,11,.2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
           Preview — Mock Topology
         </div>
-        <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} isDarkMode={true} />
+        <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} />
       </div>
     </div>
   )
 }
 
 // ─── SwarmOverlay ─────────────────────────────────────────────────────────────
-
-const SWARM_AGENTS = [
-  { key: 'triage',      label: 'Triage Agent' },
-  { key: 'rag_search',  label: 'RAG Cache Lookup' },
-  { key: 'rca',         label: 'Root Cause Analyzer' },
-  { key: 'browser',     label: 'Browser Scraper' },
-  { key: 'remediation', label: 'Remediation Agent' },
-  { key: 'reporter',    label: 'Incident Reporter' },
-]
-
-const NODE_TO_AGENT: Record<string, string> = {
-  triage: 'Triage Agent',
-  rag_search: 'RAG Cache Lookup',
-  rca: 'Root Cause Analyzer',
-  browser: 'Browser Scraper',
-  remediation: 'Remediation Agent',
-  reporter: 'Incident Reporter',
-}
 
 function SwarmOverlay() {
   const { activeAgent, completedNodes, totalCostUsd, events } = useIncidentStore()
@@ -250,11 +277,10 @@ function SwarmOverlay() {
     }
   })
 
-  const confidence = completedNodes.length >= 4 ? 94 : completedNodes.length >= 2 ? 72 : null
+  const confidence = deriveConfidence(completedNodes)
 
   return (
     <div style={{ position: 'absolute', top: 12, right: 12, width: 200, background: 'rgba(6,8,16,.92)', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 12px', backdropFilter: 'blur(8px)', zIndex: 20 }}>
-      <style>{`@keyframes cockpit-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ fontSize: 9, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
         AI Swarm Reasoning
       </div>
@@ -298,14 +324,9 @@ function SwarmOverlay() {
 // ─── AgentBadge ───────────────────────────────────────────────────────────────
 
 function AgentBadge({ label, state }: { label: string; state: 'idle' | 'active' | 'done' }) {
-  const styles: Record<string, React.CSSProperties> = {
-    idle:   { background: 'rgba(255,255,255,.03)', color: '#334155', border: '1px solid #0f172a' },
-    done:   { background: 'rgba(16,185,129,.08)',  color: '#34d399', border: '1px solid rgba(16,185,129,.15)' },
-    active: { background: 'rgba(245,158,11,.08)',  color: '#fbbf24', border: '1px solid rgba(245,158,11,.15)' },
-  }
   const prefix = state === 'done' ? '✓ ' : state === 'active' ? '⟳ ' : '○ '
   return (
-    <div style={{ fontSize: 8.5, padding: '2px 8px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4, ...styles[state] }}>
+    <div style={{ fontSize: 8.5, padding: '2px 8px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4, ...AGENT_BADGE_STYLES[state] }}>
       {prefix}{label}
     </div>
   )
@@ -323,12 +344,12 @@ function BottomStrip({ onApplyMitigation, isMitigating }: BottomStripProps) {
 
   const agentBadgeState = (key: string): 'idle' | 'active' | 'done' => {
     if (completedNodes.includes(key)) return 'done'
-    if (activeAgent && activeAgent.toLowerCase().includes(key.replace('_', ' '))) return 'active'
+    if (activeAgent && NODE_TO_AGENT[key] === activeAgent) return 'active'
     return 'idle'
   }
 
   const canApply = !!report && !isMitigating
-  const confidence = completedNodes.length >= 4 ? 94 : null
+  const confidence = deriveConfidence(completedNodes)
 
   return (
     <div style={{ background: '#060810', borderTop: '1px solid #0f172a', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 6, overflow: 'hidden' }}>
@@ -384,7 +405,7 @@ export function AgentSwarmCockpit(props: AgentSwarmCockpitProps) {
           />
         ) : (
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <RootCauseGraph nodes={props.previewIncident.graphNodes} links={props.previewIncident.graphLinks} isDarkMode={true} />
+            <RootCauseGraph nodes={props.previewIncident.graphNodes} links={props.previewIncident.graphLinks} />
             <SwarmOverlay />
           </div>
         )}

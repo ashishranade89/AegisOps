@@ -685,3 +685,8 @@ input, textarea, select { font: inherit; color: inherit; box-sizing: border-box;
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* Component animations */
+@keyframes cockpit-spin {
+  to { transform: rotate(360deg); }
+}

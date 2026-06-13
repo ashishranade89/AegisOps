@@ -1349,7 +1349,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                       <h3 className="text-xs font-mono font-bold uppercase tracking-wider">Topology Live Nodes</h3>
                     </div>
                   </div>
-                  <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} isDarkMode={isDarkMode} />
+                  <RootCauseGraph nodes={previewIncident.graphNodes} links={previewIncident.graphLinks} />
                 </div>
 
                 {/* Timeline progression */}

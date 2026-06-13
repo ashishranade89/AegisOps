@@ -228,7 +228,7 @@ export default function RootCauseGraph({ nodes, links }: RootCauseGraphProps) {
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-sans uppercase font-bold ${
                   selectedNode.status === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                   selectedNode.status === 'active' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                  'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                  'bg-[var(--surface)] text-[var(--ink-3)] border border-[var(--line-strong)]'
                 }`}>
                   {selectedNode.status.toUpperCase()}
                 </span>
@@ -240,31 +240,31 @@ export default function RootCauseGraph({ nodes, links }: RootCauseGraphProps) {
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-1">
               <div>
-                <span className="text-[9px] text-slate-500 uppercase font-sans block">Latency</span>
+                <span className="text-[9px] text-[var(--ink-3)] uppercase font-sans block">Latency</span>
                 <span className={`font-mono font-bold ${selectedNode.status === 'error' ? 'text-rose-400' : 'text-[var(--ink-2)]'}`}>
                   {selectedNode.status === 'error' ? '3200ms' : selectedNode.status === 'active' ? '850ms' : '140ms'}
                 </span>
               </div>
               <div>
-                <span className="text-[9px] text-slate-500 uppercase font-sans block">Error Rate</span>
+                <span className="text-[9px] text-[var(--ink-3)] uppercase font-sans block">Error Rate</span>
                 <span className={`font-mono font-bold ${selectedNode.status === 'error' ? 'text-rose-400' : 'text-[var(--ink-2)]'}`}>
                   {selectedNode.status === 'error' ? '15%' : '0%'}
                 </span>
               </div>
               <div>
-                <span className="text-[9px] text-slate-500 uppercase font-sans block">Related Logs</span>
+                <span className="text-[9px] text-[var(--ink-3)] uppercase font-sans block">Related Logs</span>
                 <span className="font-mono font-bold text-[var(--ink-2)]">
                   {selectedNode.status === 'error' ? '132' : '12'}
                 </span>
               </div>
               <div>
-                <span className="text-[9px] text-slate-500 uppercase font-sans block">Linked Evidence</span>
+                <span className="text-[9px] text-[var(--ink-3)] uppercase font-sans block">Linked Evidence</span>
                 <span className="font-mono font-bold text-[var(--ink-2)]">
                   {selectedNode.status === 'error' ? '27' : '0'}
                 </span>
               </div>
               <div className="col-span-2 md:col-span-1">
-                <span className="text-[9px] text-slate-500 uppercase font-sans block">Agent Notes</span>
+                <span className="text-[9px] text-[var(--ink-3)] uppercase font-sans block">Agent Notes</span>
                 <span className="font-sans text-[10px] leading-tight block truncate text-[var(--ink-3)]" title={selectedNode.details}>
                   {selectedNode.status === 'error' ? 'Outage detected.' : 'Operational. Matches baseline.'}
                 </span>

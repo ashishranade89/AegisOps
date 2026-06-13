@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 from sse_starlette.sse import EventSourceResponse
 
 from backend.api.auth import require_api_auth
@@ -42,13 +42,20 @@ from backend.tools.jira_tool import update_jira_status, add_jira_comment
 
 class TestSlackRequest(BaseModel):
     slack_bot_token: str
-    slack_channel_id: str
 
 
 class TestJiraRequest(BaseModel):
     jira_base_url: str
     jira_email: str
     jira_api_token: str
+
+    @field_validator("jira_base_url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("jira_base_url must start with http:// or https://")
+        return v.rstrip("/")
 
 
 class TestConnectionResponse(BaseModel):
@@ -62,9 +69,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Enable detailed httpx/httpcore logs to inspect outgoing request headers when debugging
-logging.getLogger("httpx").setLevel(logging.DEBUG)
-logging.getLogger("httpcore").setLevel(logging.DEBUG)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("backend.tools.llm_config").setLevel(logging.DEBUG)
 
 _checkpointer = None

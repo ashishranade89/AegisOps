@@ -1,73 +1,271 @@
-# ============================================================
-#  AegisOps — Start Backend + Frontend (Windows)
-#  Run in PowerShell: .\start.ps1
-# ============================================================
-
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ErrorActionPreference = "Stop"
+$Root = $PSScriptRoot
 
-function ok($msg)   { Write-Host "  [OK] $msg" -ForegroundColor Green }
-function warn($msg) { Write-Host "  [WARN] $msg" -ForegroundColor Yellow }
-function info($msg) { Write-Host "--> $msg" -ForegroundColor Cyan }
+# Repair commands used by this launcher when startup state is broken:
+# - Clear stale listeners on 8004/5176 with Get-NetTCPConnection + Stop-Process
+# - Remove partial frontend installs with Remove-Item -Recurse -Force frontend\node_modules
+# - Rebuild frontend dependencies with npm install --legacy-peer-deps --include=dev
+# - Launch Vite directly from frontend\node_modules\vite\bin\vite.js with Node.js
+# - Start the backend with python -m uvicorn backend.api.app:app --port 8004 --reload
 
-Write-Host ""
-Write-Host "=== AegisOps - Starting ===" -ForegroundColor Cyan
-Write-Host ""
-
-# Ensure uv is in PATH (may not be present after fresh install without restart)
-$uvPaths = @(
-  "$env:USERPROFILE\.local\bin",
-  "$env:USERPROFILE\.cargo\bin"
-)
-foreach ($p in $uvPaths) {
-  if ((Test-Path $p) -and ($env:PATH -notlike "*$p*")) {
-    $env:PATH = "$p;$env:PATH"
-  }
+function Write-Banner {
+  Write-Host ""
+  Write-Host "========================================" -ForegroundColor Cyan
+  Write-Host "  AegisOps - Starting" -ForegroundColor Cyan
+  Write-Host "========================================" -ForegroundColor Cyan
+  Write-Host ""
 }
 
-# Kill any processes already using our ports
-foreach ($port in @(8004, 5176)) {
-  $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-  if ($conn) {
-    $pid = $conn.OwningProcess | Select-Object -First 1
-    warn "Port $port occupied (PID $pid) — stopping it..."
-    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 500
+function Stop-PortListener {
+  param(
+    [Parameter(Mandatory = $true)]
+    [int]$Port
+  )
+
+  $pids = @(
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+      Select-Object -ExpandProperty OwningProcess -Unique
+  )
+
+  foreach ($listenerPid in $pids) {
+    Write-Host "Stopping process on port $Port (PID $listenerPid)..." -ForegroundColor Yellow
+    try {
+      & taskkill /PID $listenerPid /T /F | Out-Null
+    } catch {
+      Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
+    }
   }
+
+  $remaining = @(
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+      Select-Object -ExpandProperty OwningProcess -Unique
+  )
+  foreach ($listenerPid in $remaining) {
+    Write-Host "Force-clearing remaining listener on port $Port (PID $listenerPid)..." -ForegroundColor Yellow
+    & taskkill /PID $listenerPid /T /F | Out-Null
+  }
+
+  Start-Sleep -Milliseconds 300
 }
 
-# Start backend in a new window
-info "Starting backend on http://127.0.0.1:8004 ..."
-$backendJob = Start-Process -FilePath "powershell" `
-  -ArgumentList "-NoExit", "-Command", "Set-Location '$Root'; uv run uvicorn backend.api.app:app --host 127.0.0.1 --port 8004 --reload" `
-  -PassThru
+function Start-AppProcess {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
 
-# Wait for backend to be ready (up to 20 seconds)
-Write-Host "   Waiting for backend" -NoNewline
-$ready = $false
-for ($i = 0; $i -lt 40; $i++) {
-  Start-Sleep -Milliseconds 500
+    [Parameter(Mandatory = $true)]
+    [string]$ArgumentList,
+
+    [Parameter(Mandatory = $true)]
+    [string]$WorkingDirectory,
+
+    [Parameter(Mandatory = $true)]
+    [string]$StdOutLog,
+
+    [Parameter(Mandatory = $true)]
+    [string]$StdErrLog
+  )
+
+  return Start-Process -FilePath $FilePath `
+    -ArgumentList $ArgumentList `
+    -WorkingDirectory $WorkingDirectory `
+    -RedirectStandardOutput $StdOutLog `
+    -RedirectStandardError $StdErrLog `
+    -PassThru
+}
+
+function Get-PythonExe {
+  $venvPython = Join-Path $Root ".venv\Scripts\python.exe"
+  if (Test-Path $venvPython) {
+    return $venvPython
+  }
+
+  $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+  if ($pythonCmd -and $pythonCmd.Path) {
+    return $pythonCmd.Path
+  }
+
+  throw "Python executable not found. Expected .venv\Scripts\python.exe or python on PATH."
+}
+
+function Get-UvExe {
+  $uvCmd = Get-Command uv -ErrorAction SilentlyContinue
+  if ($uvCmd -and $uvCmd.Path) {
+    return $uvCmd.Path
+  }
+
+  throw "uv executable not found. Expected uv on PATH."
+}
+
+function Test-PythonCanImport {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$PythonExe,
+
+    [Parameter(Mandatory = $true)]
+    [string]$ModuleName
+  )
+
+  if (-not (Test-Path $PythonExe)) {
+    return $false
+  }
+
   try {
-    $resp = Invoke-WebRequest -Uri "http://127.0.0.1:8004/health" -UseBasicParsing -TimeoutSec 1 -ErrorAction Stop
-    if ($resp.StatusCode -eq 200) { $ready = $true; break }
-  } catch {}
-  Write-Host "." -NoNewline
+    & $PythonExe -c "import $ModuleName" 2>$null
+    return ($LASTEXITCODE -eq 0)
+  } catch {
+    return $false
+  }
 }
-if ($ready) { Write-Host " [OK]" -ForegroundColor Green }
-else { warn "`nBackend didn't respond yet — check the backend window for errors." }
 
-# Start frontend
-info "Starting frontend on http://localhost:5176 ..."
-$frontendJob = Start-Process -FilePath "powershell" `
-  -ArgumentList "-NoExit", "-Command", "Set-Location '$Root\frontend'; npm run dev" `
-  -PassThru
+function Get-BackendStartCommand {
+  $venvPython = Join-Path $Root ".venv\Scripts\python.exe"
+  if (Test-PythonCanImport -PythonExe $venvPython -ModuleName "uvicorn") {
+    return @{
+      FilePath     = $venvPython
+      ArgumentList = "-m uvicorn backend.api.app:app --port 8004 --reload"
+      Mode         = "venv"
+    }
+  }
+
+  $uvExe = Get-UvExe
+  return @{
+    FilePath     = $uvExe
+    ArgumentList = "run uvicorn backend.api.app:app --port 8004 --reload"
+    Mode         = "uv"
+  }
+}
+
+function Get-NodeExe {
+  $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+  if ($nodeCmd -and $nodeCmd.Path) {
+    return $nodeCmd.Path
+  }
+
+  throw "Node.js executable not found. Expected node on PATH."
+}
+
+function Ensure-FrontendDeps {
+  $frontendDir = Join-Path $Root "frontend"
+  $nodeModules = Join-Path $frontendDir "node_modules"
+  $vitePackage = Join-Path $frontendDir "node_modules\vite\package.json"
+  if ((Test-Path $nodeModules) -and (Test-Path $vitePackage)) {
+    return
+  }
+
+  if (Test-Path $nodeModules) {
+    Write-Host "Repairing incomplete frontend dependencies..." -ForegroundColor Yellow
+    Remove-Item -LiteralPath $nodeModules -Recurse -Force
+  } else {
+    Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
+  }
+
+  Push-Location $frontendDir
+  try {
+    & npm install --legacy-peer-deps --include=dev
+    if ($LASTEXITCODE -ne 0) {
+      throw "npm install failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+  }
+}
+
+function Stop-ChildProcesses {
+  param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [System.Diagnostics.Process[]]$Processes
+  )
+
+  Write-Host ""
+  Write-Host "Stopping servers..." -ForegroundColor Yellow
+  foreach ($process in $Processes) {
+    if ($null -ne $process) {
+      try {
+        if (-not (Test-ProcessRunning $process)) {
+          continue
+        }
+        if (-not $process.HasExited) {
+          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        }
+      } catch {}
+    }
+  }
+}
+
+function Test-ProcessRunning {
+  param(
+    [Parameter(Mandatory = $true)]
+    [System.Diagnostics.Process]$Process
+  )
+
+  try {
+    return -not $Process.HasExited
+  } catch {
+    return $false
+  }
+}
+
+Write-Banner
+
+Stop-PortListener -Port 8004
+Stop-PortListener -Port 5176
+
+Write-Host "Starting backend -> http://localhost:8004" -ForegroundColor Green
+$backendLog = Join-Path $Root "backend.log"
+$backendErr = Join-Path $Root "backend.err.log"
+$backendCommand = Get-BackendStartCommand
+if ($backendCommand.Mode -eq "uv") {
+  Write-Host "Backend venv is not healthy; falling back to uv run." -ForegroundColor Yellow
+}
+$backend = Start-AppProcess -FilePath $backendCommand.FilePath -ArgumentList $backendCommand.ArgumentList -WorkingDirectory $Root -StdOutLog $backendLog -StdErrLog $backendErr
+
+Write-Host -NoNewline "Waiting for backend"
+$backendReady = $false
+for ($i = 1; $i -le 20; $i++) {
+  try {
+    $response = Invoke-WebRequest -Uri "http://localhost:8004/health" -UseBasicParsing -TimeoutSec 2
+    if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+      $backendReady = $true
+      break
+    }
+  } catch {}
+  if (-not (Test-ProcessRunning $backend)) {
+    break
+  }
+  Write-Host -NoNewline "."
+  Start-Sleep -Milliseconds 500
+}
+if ($backendReady) {
+  Write-Host " done" -ForegroundColor Green
+} else {
+  Write-Host " not ready yet" -ForegroundColor Yellow
+  if (-not (Test-ProcessRunning $backend)) {
+    Write-Host "Backend exited early. Check backend.err.log for the startup error." -ForegroundColor Red
+  }
+}
+
+Write-Host "Starting frontend -> http://localhost:5176" -ForegroundColor Green
+$frontendLog = Join-Path $Root "frontend.log"
+$frontendErr = Join-Path $Root "frontend.err.log"
+Ensure-FrontendDeps
+$nodeExe = Get-NodeExe
+$viteEntry = Join-Path $Root "frontend\node_modules\vite\bin\vite.js"
+$frontend = Start-AppProcess -FilePath $nodeExe -ArgumentList "`"$viteEntry`" --port 5176 --host 127.0.0.1" -WorkingDirectory (Join-Path $Root "frontend") -StdOutLog $frontendLog -StdErrLog $frontendErr
 
 Write-Host ""
-ok "App starting at http://localhost:5176"
-Write-Host "  Two new windows opened — close them to stop the servers." -ForegroundColor Yellow
+Write-Host "App running at http://localhost:5176" -ForegroundColor Green
+Write-Host "Press Ctrl+C to stop both servers." -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  If you see errors:" -ForegroundColor Cyan
-Write-Host "    1. Check that ALLOW_CLIENT_API_KEYS=true is in your .env"
-Write-Host "    2. Run .\setup.ps1 to auto-fix common issues"
-Write-Host "    3. Enter your OpenRouter key in the UI when the app loads"
-Write-Host ""
+
+try {
+  while ($true) {
+    $active = @($backend, $frontend) | Where-Object { $_ -and (Test-ProcessRunning $_) }
+    if ($active.Count -eq 0) {
+      break
+    }
+    Start-Sleep -Seconds 2
+  }
+} finally {
+  Stop-ChildProcesses $backend, $frontend
+}

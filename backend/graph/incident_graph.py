@@ -7,6 +7,8 @@ from backend.agents.web_search_agent import web_search_node
 from backend.agents.self_heal_agent import self_heal_node
 from backend.agents.remediation_agent import remediation_node
 from backend.agents.reporter_agent import reporter_node
+from backend.agents.jira_agent import jira_node
+from backend.agents.slack_agent import slack_report_node
 from backend.memory.incident_rag import search_incident_history, store_resolved_incident
 import json
 import logging
@@ -165,6 +167,8 @@ def build_incident_graph(checkpointer) -> StateGraph:
     
     # Adding processing nodes
     builder.add_node("triage", triage_node)
+    builder.add_node("jira", jira_node)
+    builder.add_node("slack_report", slack_report_node)
     builder.add_node("rag_search", rag_search_node)
     builder.add_node("rca", rca_node)
     builder.add_node("browser", browser_node)
@@ -176,7 +180,8 @@ def build_incident_graph(checkpointer) -> StateGraph:
     
     # Execution topology flow
     builder.set_entry_point("triage")
-    builder.add_edge("triage", "rag_search")
+    builder.add_edge("triage", "jira")
+    builder.add_edge("jira", "rag_search")
     
     # Intelligent conditional edges
     builder.add_conditional_edges("rag_search", route_after_rag, {
@@ -211,7 +216,8 @@ def build_incident_graph(checkpointer) -> StateGraph:
         "self_heal": "self_heal"
     })
     
-    builder.add_edge("reporter", "store_incident")
+    builder.add_edge("reporter", "slack_report")
+    builder.add_edge("slack_report", "store_incident")
     builder.add_edge("store_incident", END)
     
     return builder.compile(checkpointer=checkpointer, interrupt_before=["remediation"])

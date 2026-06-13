@@ -55,7 +55,7 @@ export default function RootCauseGraph({ nodes, links }: RootCauseGraphProps) {
       </div>
 
       {/* SVG Connection Lines */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 400 320" preserveAspectRatio="none" style={{ overflow: "visible" }}>
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" style={{ overflow: "visible" }}>
         <defs>
           <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.8" />
@@ -73,31 +73,19 @@ export default function RootCauseGraph({ nodes, links }: RootCauseGraphProps) {
           .map((n) => {
             const pos = nodePositions[n.id]
             if (!pos) return null
-            // pos.x and pos.y are 0-100 percentages; viewBox is 400x320
-            const cx = pos.x * 4
-            const cy = pos.y * 3.2
             return (
-              <g key={`ring-${n.id}`}>
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r="22"
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth="1.5"
-                  strokeDasharray="5,4"
-                  opacity=".3"
-                >
-                  <animateTransform
-                    attributeName="transform"
-                    type="rotate"
-                    from={`0 ${cx} ${cy}`}
-                    to={`360 ${cx} ${cy}`}
-                    dur="6s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              </g>
+              <circle
+                key={`ring-${n.id}`}
+                cx={`${pos.x}%`}
+                cy={`${pos.y}%`}
+                r="22"
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="1.5"
+                strokeDasharray="5,4"
+                opacity=".3"
+                style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'cockpit-spin 6s linear infinite' }}
+              />
             )
           })}
 
@@ -178,9 +166,12 @@ export default function RootCauseGraph({ nodes, links }: RootCauseGraphProps) {
               key={node.id}
               className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
               style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+              role="button"
+              tabIndex={0}
               onMouseEnter={() => setSelectedNodeId(node.id)}
               onMouseLeave={() => setSelectedNodeId(null)}
               onClick={() => setSelectedNodeId(isSelected ? null : node.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedNodeId(isSelected ? null : node.id) }}
             >
               <div className={`${ringColor}`}></div>
               <div
@@ -230,7 +221,7 @@ export default function RootCauseGraph({ nodes, links }: RootCauseGraphProps) {
                   selectedNode.status === 'active' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                   'bg-[var(--surface)] text-[var(--ink-3)] border border-[var(--line-strong)]'
                 }`}>
-                  {selectedNode.status.toUpperCase()}
+                  {(selectedNode.status ?? '').toUpperCase()}
                 </span>
               </div>
               <span className="text-[10px] font-sans text-[var(--ink-3)]">

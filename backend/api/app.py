@@ -12,8 +12,11 @@ from contextlib import asynccontextmanager
 SERVER_INSTANCE_ID = str(uuid.uuid4())
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 
@@ -24,6 +27,14 @@ from backend.api.streaming import create_run, event_generator, get_run, send_sse
 from backend.models.incident_state import ApprovalDecision
 from backend.simulators.payment_outage import list_payment_scenarios
 from backend.utils.config import get_config
+
+import hashlib
+import hmac
+import json
+import time
+from backend.agents.slack_agent import send_slack_approval
+from backend.tools.slack_bot_tool import update_approval_message
+from backend.tools.jira_tool import update_jira_status, add_jira_comment
 
 logging.basicConfig(
     level=logging.INFO,
@@ -155,6 +166,10 @@ async def run_graph_task(
                 "browser_result": vals.get("browser_result"),
                 "web_search_result": vals.get("web_search_result"),
             })
+            # Send Slack approval message and store ts in graph state for later threading
+            slack_ts = await send_slack_approval(vals, run_id)
+            if slack_ts:
+                await compiled_graph.aupdate_state(config, {"slack_approval_ts": slack_ts})
             state.status = "paused"
             state.current_phase = "paused_for_approval"
             persist_run(state)
@@ -238,6 +253,35 @@ async def resume_incident(run_id: str, payload: dict):
     try:
         state.status = "resuming"
         persist_run(state)
+        # Update Slack message and Jira ticket status to reflect the decision
+        try:
+            from backend.graph.incident_graph import get_compiled_graph
+            compiled = get_compiled_graph()
+            cfg = {"configurable": {"thread_id": run_id}}
+            current = await compiled.aget_state(cfg)
+            if current and current.values:
+                cv = current.values
+                slack_ts = cv.get("slack_approval_ts")
+                jira_ticket_id = cv.get("jira_ticket_id")
+                judge = approval.judge_name or "Web UI"
+                decision = "approved" if approval.status == "approved" else "rejected"
+
+                if slack_ts:
+                    update_approval_message(
+                        message_ts=slack_ts,
+                        decision=decision,
+                        decided_by=judge,
+                    )
+                if jira_ticket_id:
+                    jira_status = "In Progress" if decision == "approved" else "Closed"
+                    update_jira_status.invoke({"ticket_id": jira_ticket_id, "status": jira_status})
+                    if decision == "rejected" and approval.comments:
+                        add_jira_comment.invoke({
+                            "ticket_id": jira_ticket_id,
+                            "comment": f"Rejected by {judge}: {approval.comments}"
+                        })
+        except Exception as _e:
+            logger.warning("Jira/Slack update on resume failed (non-fatal): %s", _e)
         task = asyncio.create_task(
             run_graph_task(
                 run_id,
@@ -562,6 +606,104 @@ async def clear_rag():
     return {"cleared_count": cleared}
 
 
+@app.post("/api/slack/action")
+async def slack_action(request: Request):
+    """
+    Handles interactive Slack button callbacks (Approve / Reject).
+    Verifies Slack signing secret, then resumes the pipeline.
+    """
+    from backend.utils.config import get_config as _cfg
+    import urllib.parse as _urlparse
+
+    body_bytes = await request.body()
+    body_str = body_bytes.decode("utf-8")
+
+    # Verify Slack signing secret
+    signing_secret = _cfg().slack_signing_secret
+    if signing_secret:
+        timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
+        slack_sig = request.headers.get("X-Slack-Signature", "")
+        # Reject replays older than 5 minutes
+        if abs(time.time() - float(timestamp or 0)) > 300:
+            raise HTTPException(status_code=403, detail="Request too old")
+        sig_basestring = f"v0:{timestamp}:{body_str}"
+        computed = "v0=" + hmac.new(
+            signing_secret.encode(),
+            sig_basestring.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(computed, slack_sig):
+            logger.warning("Slack signature mismatch from IP %s", request.client.host)
+            raise HTTPException(status_code=403, detail="Invalid signature")
+
+    # Parse the payload form field
+    parsed = _urlparse.parse_qs(body_str)
+    payload_str = parsed.get("payload", ["{}"])[0]
+    payload = json.loads(payload_str)
+
+    actions = payload.get("actions", [])
+    if not actions:
+        return {}
+
+    action = actions[0]
+    action_id = action.get("action_id")   # "approve" or "reject"
+    run_id = action.get("value", "")
+    user_name = payload.get("user", {}).get("name", "Slack User")
+
+    # Immediately update the Slack message to prevent double-clicks
+    try:
+        from backend.graph.incident_graph import get_compiled_graph
+        compiled = get_compiled_graph()
+        cfg = {"configurable": {"thread_id": run_id}}
+        current = await compiled.aget_state(cfg)
+        slack_ts = (current.values or {}).get("slack_approval_ts") if current else None
+        jira_ticket_id = (current.values or {}).get("jira_ticket_id") if current else None
+    except Exception:
+        slack_ts = None
+        jira_ticket_id = None
+
+    decision = "approved" if action_id == "approve" else "rejected"
+
+    if slack_ts:
+        update_approval_message(
+            message_ts=slack_ts,
+            decision=decision,
+            decided_by=user_name,
+        )
+
+    if jira_ticket_id:
+        jira_status = "In Progress" if decision == "approved" else "Closed"
+        update_jira_status.invoke({"ticket_id": jira_ticket_id, "status": jira_status})
+
+    # Resume the pipeline using the same path as the web UI
+    run_state = get_run(run_id)
+    if not run_state or run_state.status != "paused":
+        logger.warning("Slack action on non-paused run %s (status=%s)",
+                       run_id, run_state.status if run_state else "not found")
+        return {}
+
+    approval_status = "approved" if action_id == "approve" else "rejected"
+    approval = ApprovalDecision(status=approval_status, judge_name=user_name)
+
+    run_state.status = "resuming"
+    persist_run(run_state)
+
+    credentials = resolve_llm_credentials({})  # uses server-side config
+    task = asyncio.create_task(
+        run_graph_task(
+            run_id,
+            run_state.scenario_type,
+            credentials=credentials,
+            resume_state={"approval": approval.model_dump()},
+        )
+    )
+    _running_tasks[run_id] = task
+    task.add_done_callback(lambda t: _running_tasks.pop(run_id, None))
+
+    # Slack requires HTTP 200 with empty body within 3 seconds
+    return {}
+
+
 @app.get("/health")
 async def health():
     config = get_config()
@@ -572,3 +714,21 @@ async def health():
         "client_keys_allowed": config.allow_client_api_keys,
         "server_instance_id": SERVER_INSTANCE_ID,
     }
+
+
+# Serve the compiled React frontend (production only — skipped if dist not built)
+_FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+if _FRONTEND_DIST.exists():
+    _assets_dir = _FRONTEND_DIST / "assets"
+    if _assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="frontend-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _serve_spa(full_path: str):
+        # Serve known static files (favicon, icons, etc.) directly
+        candidate = _FRONTEND_DIST / full_path
+        if full_path and candidate.exists() and candidate.is_file():
+            return FileResponse(str(candidate))
+        # Fall back to index.html for all SPA routes
+        return FileResponse(str(_FRONTEND_DIST / "index.html"))

@@ -1,6 +1,9 @@
+import os
 from fastapi import HTTPException
 from backend.utils.config import get_config
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def resolve_llm_credentials(payload: dict | None = None) -> dict:
     """
@@ -10,8 +13,8 @@ def resolve_llm_credentials(payload: dict | None = None) -> dict:
     config = get_config()
     payload = payload or {}
 
-    openrouter_key = config.openrouter_api_key
-    tavily_key = config.tavily_api_key
+    openrouter_key = config.openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
+    tavily_key = config.tavily_api_key or os.getenv("TAVILY_API_KEY")
     llm_model = payload.get("llm_model") or config.model_name
     llm_base_url = payload.get("llm_base_url") or config.openrouter_base_url
 

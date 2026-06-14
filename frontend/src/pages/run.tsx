@@ -261,15 +261,15 @@ export function RunPage() {
                   Slack Notification
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginTop: 2 }}>
-                  {slackMessage.status === 'posted' && slackMessage.channelId && `#${slackMessage.channelId}`}
+                  {slackMessage.status === 'posted' && slackMessage.channel_id && `#${slackMessage.channel_id}`}
                   {slackMessage.status === 'dry_run' && 'Dry run — not sent'}
                   {slackMessage.status === 'skipped' && (slackMessage.reason || 'Not configured')}
                   {slackMessage.status === 'error' && (slackMessage.reason || 'Failed to send')}
                 </div>
               </div>
-              {slackMessage.status === 'posted' && slackMessage.threadUrl && (
+              {slackMessage.status === 'posted' && slackMessage.thread_url && (
                 <a
-                  href={slackMessage.threadUrl}
+                  href={slackMessage.thread_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

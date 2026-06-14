@@ -74,9 +74,9 @@ export interface ApprovalContext {
 
 export interface SlackMessage {
   status: 'posted' | 'skipped' | 'dry_run' | 'error'
-  channelId?: string
-  messageTs?: string
-  threadUrl?: string
+  channel_id?: string
+  message_ts?: string
+  thread_url?: string
   reason?: string
 }
 

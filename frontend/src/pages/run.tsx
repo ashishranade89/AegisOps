@@ -11,7 +11,7 @@ import { IncidentChat } from '@/components/incident-chat'
 import { useSSE } from '@/hooks/use-sse'
 import { useIncidentStore } from '@/stores/incident-store'
 import { stopIncident } from '@/lib/api'
-import { ArrowLeft, Loader2, Sparkles, AlertTriangle, DollarSign, Download, Printer } from 'lucide-react'
+import { ArrowLeft, Loader2, Sparkles, AlertTriangle, DollarSign, Download, Printer, Ticket, ExternalLink, MessageSquare } from 'lucide-react'
 
 function scenarioHeading(key: string): string {
   if (!key) return 'Incident Response Workflow'
@@ -39,6 +39,9 @@ export function RunPage() {
     agentCosts,
     browserResult,
     approvalContext,
+    jiraTicketId,
+    jiraTicketUrl,
+    slackMessage,
   } = useIncidentStore()
 
   const [graphCollapsed, setGraphCollapsed] = useState(false)
@@ -210,6 +213,87 @@ export function RunPage() {
           {/* Live vendor status card (browser scrape result) */}
           {browserResult && (
             <VendorStatusCard result={browserResult} />
+          )}
+
+          {/* Jira ticket card */}
+          {jiraTicketId && (
+            <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+              <Ticket size={16} style={{ color: '#0052CC', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Jira Incident Ticket</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginTop: 2 }}>{jiraTicketId}</div>
+              </div>
+              {jiraTicketUrl && (
+                <a
+                  href={jiraTicketUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#0052CC', textDecoration: 'none', background: 'rgba(0,82,204,0.08)', border: '1px solid rgba(0,82,204,0.25)', borderRadius: 6, padding: '5px 10px' }}
+                >
+                  <ExternalLink size={12} />
+                  Open in Jira
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Slack message card */}
+          {slackMessage && (
+            <div
+              className="card"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 16px',
+                opacity: slackMessage.status === 'skipped' || slackMessage.status === 'error' ? 0.6 : 1,
+              }}
+            >
+              <MessageSquare
+                size={16}
+                style={{
+                  color: slackMessage.status === 'posted' ? '#4A154B' : 'var(--ink-3)',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Slack Notification
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginTop: 2 }}>
+                  {slackMessage.status === 'posted' && slackMessage.channelId && `#${slackMessage.channelId}`}
+                  {slackMessage.status === 'dry_run' && 'Dry run — not sent'}
+                  {slackMessage.status === 'skipped' && (slackMessage.reason || 'Not configured')}
+                  {slackMessage.status === 'error' && (slackMessage.reason || 'Failed to send')}
+                </div>
+              </div>
+              {slackMessage.status === 'posted' && slackMessage.threadUrl && (
+                <a
+                  href={slackMessage.threadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#4A154B',
+                    textDecoration: 'none',
+                    background: 'rgba(74,21,75,0.08)',
+                    border: '1px solid rgba(74,21,75,0.25)',
+                    borderRadius: 6,
+                    padding: '5px 10px',
+                  }}
+                >
+                  <ExternalLink size={12} />
+                  Open in Slack
+                </a>
+              )}
+              {slackMessage.status === 'dry_run' && (
+                <span style={{ fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic' }}>dry run</span>
+              )}
+            </div>
           )}
 
           {/* Human approval gate */}

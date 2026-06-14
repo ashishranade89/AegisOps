@@ -20,6 +20,7 @@ async def trigger_incident(raw_logs: str, source_name: str, auto_remediate: bool
     """Fire a custom_telemetry investigation and return the new run_id."""
     config = get_config()
     port = int(os.getenv("API_PORT", _DEFAULT_PORT))
+    base_url = os.getenv("API_BASE_URL", f"http://127.0.0.1:{port}")
 
     headers: dict[str, str] = {}
     if config.incident_api_key:
@@ -36,7 +37,7 @@ async def trigger_incident(raw_logs: str, source_name: str, auto_remediate: bool
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"http://127.0.0.1:{port}/api/incident",
+            f"{base_url}/api/incident",
             json=payload,
             headers=headers,
             timeout=10.0,

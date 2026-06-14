@@ -15,6 +15,24 @@ def _headers(token: str) -> dict:
     }
 
 
+def _join_channel(token: str, channel_id: str) -> None:
+    """Attempt to join a public channel. No-op for private channels (bot must be invited)."""
+    try:
+        resp = httpx.post(
+            f"{_SLACK_API}/conversations.join",
+            json={"channel": channel_id},
+            headers=_headers(token),
+            timeout=10.0,
+        )
+        data = resp.json()
+        if data.get("ok"):
+            logger.info("Slack bot joined channel %s", channel_id)
+        else:
+            logger.warning("Could not join channel %s: %s", channel_id, data.get("error"))
+    except Exception as e:
+        logger.warning("conversations.join failed: %s", e)
+
+
 def _build_approval_blocks(
     run_id: str,
     root_cause: str,
@@ -109,7 +127,7 @@ def post_approval_message(
         run_id, root_cause, severity, suspected_vendor, remediation_steps, jira_url
     )
 
-    try:
+    def _post_message() -> dict:
         resp = httpx.post(
             f"{_SLACK_API}/chat.postMessage",
             json={
@@ -121,7 +139,15 @@ def post_approval_message(
             timeout=10.0,
         )
         resp.raise_for_status()
-        data = resp.json()
+        return resp.json()
+
+    try:
+        data = _post_message()
+        if not data.get("ok") and data.get("error") == "not_in_channel":
+            # Bot is not a member — try joining (works for public channels)
+            logger.info("Bot not in channel %s — attempting to join", effective_channel)
+            _join_channel(effective_token, effective_channel)
+            data = _post_message()
         if not data.get("ok"):
             raise ValueError(f"Slack API error: {data.get('error')}")
         ts = data["message"]["ts"]

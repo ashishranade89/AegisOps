@@ -641,12 +641,13 @@ async def get_monitor_route(mid: str):
 
 @app.put("/api/monitors/{mid}", dependencies=[Depends(require_api_auth)])
 async def update_monitor_route(mid: str, payload: dict):
-    if not get_monitor(mid):
+    existing = get_monitor(mid)
+    if not existing:
         raise HTTPException(status_code=404, detail="Monitor not found")
     creds = payload.pop("credentials", None)
     if creds:
         payload["credentials_enc"] = encrypt(creds)
-    was_enabled = get_monitor(mid)["enabled"]
+    was_enabled = existing["enabled"]
     m = update_monitor(mid, payload)
     # Restart the task if the monitor is active so changes take effect
     if m["enabled"]:

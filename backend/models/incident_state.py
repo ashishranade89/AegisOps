@@ -104,6 +104,16 @@ class IncidentState(TypedDict):
     tavily_api_key: str | None
     llm_model: str | None
 
+    # Jira credentials from UI (override env vars when set)
+    jira_base_url_override: Optional[str]
+    jira_email_override: Optional[str]
+    jira_api_token_override: Optional[str]
+    jira_project_key_override: Optional[str]
+
+    # Slack credentials from UI (override env vars when set)
+    slack_bot_token_override: Optional[str]
+    slack_channel_id_override: Optional[str]
+
     # Live cost tracking — populated by each agent after every LLM call
     agent_costs: dict | None        # {agent_name: {input_tokens, output_tokens, cost_usd}}
     total_cost_usd: float | None

@@ -266,6 +266,7 @@
   <a href="#setup">Setup</a>
   <a href="#workflow">Workflow</a>
   <a href="#agents">Agents</a>
+  <a href="#monitors">Monitors</a>
   <a href="#mindmap">Mind Map</a>
   <a href="#api">API</a>
   <a href="#deploy">Deploy</a>
@@ -286,6 +287,9 @@
     <span class="badge badge-green">SQLite Checkpoints</span>
     <span class="badge badge-orange">Human-in-the-Loop</span>
     <span class="badge badge-orange">SSE Streaming</span>
+    <span class="badge badge-blue">Jira Auto-Ticketing</span>
+    <span class="badge badge-purple">Slack Bot Block Kit</span>
+    <span class="badge badge-green">Log Monitoring</span>
   </div>
 </div>
 
@@ -319,6 +323,18 @@
     <div class="card">
       <h3>🔄 Self-Healing</h3>
       <p>Any node failure redirects to the Self-Heal Agent, which retries up to 3× and reroutes around broken tools automatically.</p>
+    </div>
+    <div class="card">
+      <h3>🎫 Jira Auto-Ticketing</h3>
+      <p>Immediately after triage, a Jira ticket is created with severity, suspected vendor, and a deep link to the live run. Non-blocking — the pipeline continues even if Jira is unavailable.</p>
+    </div>
+    <div class="card">
+      <h3>💬 Slack Bot Integration</h3>
+      <p>Rich Block Kit messages with Approve/Reject buttons are posted to Slack. Approvals submitted via Slack propagate back to the pipeline via <code>/api/slack/action</code>. Falls back to webhook if Bot token is absent.</p>
+    </div>
+    <div class="card">
+      <h3>📡 Continuous Log Monitoring</h3>
+      <p>Poll remote servers via SSH/SFTP, watch local log files by byte offset, or receive pushed syslog messages (UDP/TCP). Automatically opens an investigation when critical or warning entries are detected.</p>
     </div>
   </div>
 
@@ -363,7 +379,14 @@
       <tr><th>Key</th><th>Required?</th><th>Purpose</th><th>Get It</th></tr>
       <tr><td><code>OPENROUTER_API_KEY</code></td><td><span class="req">Required</span></td><td>Powers all LLM agents</td><td>openrouter.ai/keys</td></tr>
       <tr><td><code>TAVILY_API_KEY</code></td><td><span class="opt">Optional</span></td><td>Enhanced real-time web search</td><td>tavily.com</td></tr>
-      <tr><td><code>SLACK_WEBHOOK_URL</code></td><td><span class="opt">Optional</span></td><td>Automated Slack incident alerts</td><td>Slack App settings</td></tr>
+      <tr><td><code>SLACK_WEBHOOK_URL</code></td><td><span class="opt">Optional</span></td><td>One-way Slack incident notifications</td><td>Slack App settings</td></tr>
+      <tr><td><code>SLACK_BOT_TOKEN</code></td><td><span class="opt">Optional</span></td><td>Rich Slack Bot: Block Kit approvals, threaded updates, interactive buttons</td><td>Slack App → OAuth &amp; Permissions</td></tr>
+      <tr><td><code>SLACK_CHANNEL_ID</code></td><td><span class="opt">Optional</span></td><td>Channel the bot posts to</td><td>Slack channel details</td></tr>
+      <tr><td><code>SLACK_SIGNING_SECRET</code></td><td><span class="opt">Optional</span></td><td>Verifies <code>/api/slack/action</code> button callbacks</td><td>Slack App → Basic Information</td></tr>
+      <tr><td><code>JIRA_BASE_URL</code></td><td><span class="opt">Optional</span></td><td rowspan="4">Auto-create Jira tickets after triage (all four required together)</td><td>Your Atlassian domain</td></tr>
+      <tr><td><code>JIRA_EMAIL</code></td><td><span class="opt">Optional</span></td><td>Atlassian account email</td></tr>
+      <tr><td><code>JIRA_API_TOKEN</code></td><td><span class="opt">Optional</span></td><td>atlassian.com/manage-profile/security/api-tokens</td></tr>
+      <tr><td><code>JIRA_PROJECT_KEY</code></td><td><span class="opt">Optional</span></td><td>e.g. <code>OPS</code></td></tr>
     </table>
   </div>
 
@@ -633,14 +656,16 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
 
   <h3 style="margin-top:2rem">End-to-End Data Flow</h3>
   <ol class="steps">
-    <li><div><strong>Alert ingestion</strong> — POST <code>/api/incident</code> with <code>scenario_type</code> (or upload a JSON with <code>raw_logs</code> + <code>raw_metrics</code>)</div></li>
-    <li><div><strong>Triage Agent</strong> — parses logs, suspects vendor, assigns severity, fires Slack "New Incident" alert</div></li>
+    <li><div><strong>Alert ingestion</strong> — POST <code>/api/incident</code> with <code>scenario_type</code> (or upload a JSON with <code>raw_logs</code> + <code>raw_metrics</code>), or triggered automatically by a Log Source Monitor</div></li>
+    <li><div><strong>Triage Agent</strong> — parses logs, suspects vendor, assigns severity</div></li>
+    <li><div><strong>Jira Integration</strong> — creates a Jira ticket with severity, vendor, and run deep-link (non-blocking)</div></li>
+    <li><div><strong>Slack Report</strong> — posts a Block Kit message with Approve/Reject buttons to Slack channel (falls back to webhook)</div></li>
     <li><div><strong>RAG Cache Lookup</strong> — ChromaDB similarity search. Confidence ≥ 0.85 → skip RCA/Browser/WebSearch, jump to remediation gate</div></li>
     <li><div><strong>RCA Agent</strong> — generates hypotheses, sets routing flags (<code>needs_browser</code>, <code>needs_web_search</code>, <code>needs_human_escalation</code>)</div></li>
     <li><div><strong>Browser Agent</strong> (if flagged) — Playwright scrapes official vendor status page</div></li>
     <li><div><strong>Web Search Agent</strong> (if flagged) — Tavily / DuckDuckGo community confirmation</div></li>
-    <li><div><strong>HITL Gate</strong> — graph pauses, frontend shows <code>ApprovalCard</code> with full investigation context. User approves, rejects, or requests changes</div></li>
-    <li><div><strong>Remediation Agent</strong> — drafts containment plan, fires Slack remediation alert</div></li>
+    <li><div><strong>HITL Gate</strong> — graph pauses, frontend shows <code>ApprovalCard</code> with full investigation context. Approval can come from the UI <em>or</em> from Slack interactive buttons via <code>/api/slack/action</code></div></li>
+    <li><div><strong>Remediation Agent</strong> — drafts containment plan, updates Slack thread and Jira ticket</div></li>
     <li><div><strong>Reporter Agent</strong> — synthesises full Markdown postmortem</div></li>
     <li><div><strong>Store to RAG</strong> — resolved incident saved to ChromaDB for future fast-path recall</div></li>
   </ol>
@@ -650,14 +675,24 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
 <!-- ══════════════ AGENTS ══════════════ -->
 <section id="agents">
   <div class="section-label">04 — Agent Swarm</div>
-  <h2>The 8 Agents</h2>
-  <p>Each agent is an <code>async</code> function: reads <code>IncidentState</code> → emits <code>agent_start</code> SSE → calls LLM with structured JSON prompt → parses response → emits <code>agent_end</code> + <code>cost_update</code> SSE → returns partial state update.</p>
+  <h2>The Agent Pipeline</h2>
+  <p>Each agent is an <code>async</code> function: reads <code>IncidentState</code> → emits <code>agent_start</code> SSE → calls LLM / external API → parses response → emits <code>agent_end</code> + optional <code>cost_update</code> SSE → returns partial state update.</p>
 
   <div class="agent-grid">
     <div class="agent-card">
       <div class="agent-num">AGENT 01</div>
       <h3>Triage Agent</h3>
-      <p>Parses raw logs/metrics. Identifies suspected vendor, severity (P1–P4), affected service, and structured events. Sends initial Slack alert.</p>
+      <p>Parses raw logs/metrics. Identifies suspected vendor, severity (P1–P4), affected service, and structured events.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 01b</div>
+      <h3>Jira Integration</h3>
+      <p>Runs immediately after triage. Creates a Jira ticket with severity, vendor, and a deep link to the live run. Non-blocking — failures are logged but never stop the pipeline.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 01c</div>
+      <h3>Slack Report</h3>
+      <p>Posts a rich Block Kit Slack message after triage with an interactive Approve/Reject button. Falls back to webhook if Bot token is absent. Updates thread on resume.</p>
     </div>
     <div class="agent-card">
       <div class="agent-num">AGENT 02</div>
@@ -682,7 +717,7 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
     <div class="agent-card">
       <div class="agent-num">AGENT 06</div>
       <h3>Remediation Agent</h3>
-      <p>Node behind the HITL gate. Checks approval status. If approved, calls LLM for containment steps and recommendations. Sends remediation Slack alert.</p>
+      <p>Node behind the HITL gate. Checks approval status. If approved, calls LLM for containment steps and recommendations. Sends remediation Slack update.</p>
     </div>
     <div class="agent-card">
       <div class="agent-num">AGENT 07</div>
@@ -722,9 +757,72 @@ def route_after_self_heal(state):
 </section>
 <hr class="divider"/>
 
+<!-- ══════════════ MONITORS ══════════════ -->
+<section id="monitors">
+  <div class="section-label">05 — Log Source Monitors</div>
+  <h2>Continuous Log Monitoring</h2>
+  <p>The monitors subsystem runs background asyncio tasks that watch log sources and automatically open an investigation whenever a critical or warning-level entry is detected. Each monitor enforces a <strong>5-minute trigger cooldown</strong> to prevent runaway LLM calls.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>📁 Local File Monitor</h3>
+      <p>Polls a local file path by byte offset — only reads new bytes since the last check. Detects log rotation automatically.</p>
+    </div>
+    <div class="card">
+      <h3>🖥️ SSH / SFTP Monitor</h3>
+      <p>Connects to a remote server via SSH and polls a log file by byte offset. Credentials are stored encrypted (Fernet) in <code>data/monitor.key</code>. Detects log rotation on remote files.</p>
+    </div>
+    <div class="card">
+      <h3>📡 Syslog UDP Monitor</h3>
+      <p>Listens on a configurable UDP port for pushed syslog messages (RFC 3164 / 5424). Ideal for network devices and legacy systems.</p>
+    </div>
+    <div class="card">
+      <h3>🔌 Syslog TCP Monitor</h3>
+      <p>Accepts pushed syslog over TCP — reliable delivery for high-volume sources or when packet loss is unacceptable.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Monitor Lifecycle</h3>
+  <ol class="steps">
+    <li><div>Create a monitor via <strong>Log Sources</strong> UI page or <code>POST /api/monitors</code></div></li>
+    <li><div>Monitor manager (started on app lifespan) spawns an asyncio task for each enabled monitor</div></li>
+    <li><div>On each poll interval, new log lines are classified by the <strong>severity classifier</strong> (critical / warning / info)</div></li>
+    <li><div>If a critical or warning line is found and the cooldown has expired, the monitor calls <code>POST /api/incident</code> internally to open a new investigation</div></li>
+    <li><div>Enable / disable monitors live via <code>POST /api/monitors/{mid}/toggle</code> — no restart required</div></li>
+  </ol>
+
+  <div class="callout">
+    <strong>Auto-Remediate Policy</strong> — Each monitor has an <code>auto_remediate</code> toggle. When enabled, the HITL approval gate is bypassed and remediation executes automatically for alerts triggered by that monitor.
+  </div>
+
+  <h3 style="margin-top:1.5rem">Monitor Fields</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>name</code></td><td><span class="req">Yes</span></td><td>Display name</td></tr>
+      <tr><td><code>monitor_type</code></td><td><span class="req">Yes</span></td><td><code>local</code> | <code>ssh</code> | <code>syslog_udp</code> | <code>syslog_tcp</code></td></tr>
+      <tr><td><code>log_path</code></td><td>local / ssh</td><td>Absolute path to the log file</td></tr>
+      <tr><td><code>host</code></td><td>ssh</td><td>Remote hostname or IP</td></tr>
+      <tr><td><code>username</code></td><td>ssh</td><td>SSH username (stored encrypted)</td></tr>
+      <tr><td><code>password</code></td><td>ssh</td><td>SSH password (stored encrypted, optional if key-based)</td></tr>
+      <tr><td><code>port</code></td><td>syslog</td><td>UDP/TCP port to listen on (default 514)</td></tr>
+      <tr><td><code>poll_interval</code></td><td><span class="opt">No</span></td><td>Seconds between polls (default 30)</td></tr>
+      <tr><td><code>auto_remediate</code></td><td><span class="opt">No</span></td><td>Skip HITL gate for this monitor's alerts</td></tr>
+      <tr><td><code>enabled</code></td><td><span class="opt">No</span></td><td>Start/stop monitoring without deleting the config</td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">LogGenerator — Synthetic Log Daemon</h3>
+  <p>The <code>LogGenerator/</code> directory contains a background daemon for local development and demos. It writes curated log lines (info / warning / critical) to <code>logs/incident.log</code> on a configurable interval.</p>
+  <pre>cd LogGenerator
+python daemon.py          # reads settings.cfg (copy settings.cfg.example first)</pre>
+  <div class="callout">Point a Local File Monitor at <code>LogGenerator/logs/incident.log</code> to see end-to-end automated incident triggering without needing a real log source.</div>
+</section>
+<hr class="divider"/>
+
 <!-- ══════════════ MINDMAP ══════════════ -->
 <section id="mindmap">
-  <div class="section-label">05 — Mind Map</div>
+  <div class="section-label">06 — Mind Map</div>
   <h2>System Architecture Mind Map</h2>
   <p>Full system decomposition — all layers, modules, and concepts at a glance.</p>
 
@@ -947,7 +1045,7 @@ def route_after_self_heal(state):
 
 <!-- ══════════════ API ══════════════ -->
 <section id="api">
-  <div class="section-label">06 — API Reference</div>
+  <div class="section-label">07 — API Reference</div>
   <h2>HTTP Endpoints</h2>
 
   <div class="tbl-wrap">
@@ -959,6 +1057,7 @@ def route_after_self_heal(state):
       <tr><td><code>GET</code></td><td><code>/api/incident/{run_id}</code></td><td>Run status + final report</td></tr>
       <tr><td><code>GET</code></td><td><code>/api/incident/{run_id}/stream</code></td><td>SSE stream of live agent events</td></tr>
       <tr><td><code>POST</code></td><td><code>/api/incident/{run_id}/resume</code></td><td>Resume paused run with HITL approval</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/incident/{run_id}/stop</code></td><td>Abort an in-progress run</td></tr>
       <tr><td><code>GET</code></td><td><code>/api/incident/{run_id}/cost</code></td><td>Token and USD cost summary</td></tr>
       <tr><td><code>POST</code></td><td><code>/api/incident/{run_id}/chat</code></td><td>AI assistant Q&A about the incident</td></tr>
       <tr><td><code>GET</code></td><td><code>/api/history</code></td><td>List past runs from SQLite (last 100)</td></tr>
@@ -967,6 +1066,15 @@ def route_after_self_heal(state):
       <tr><td><code>GET</code></td><td><code>/api/rag/entries</code></td><td>List all RAG knowledge base entries</td></tr>
       <tr><td><code>DELETE</code></td><td><code>/api/rag/entries/{incident_id}</code></td><td>Remove one incident from knowledge base</td></tr>
       <tr><td><code>DELETE</code></td><td><code>/api/rag/clear</code></td><td>Clear entire knowledge base</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/monitors</code></td><td>List all configured log source monitors</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/monitors</code></td><td>Create a monitor (local / SSH / syslog_udp / syslog_tcp)</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/monitors/{mid}</code></td><td>Get a single monitor</td></tr>
+      <tr><td><code>PUT</code></td><td><code>/api/monitors/{mid}</code></td><td>Update monitor settings</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/monitors/{mid}</code></td><td>Delete a monitor</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/monitors/{mid}/toggle</code></td><td>Enable / disable a monitor</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/slack/action</code></td><td>Slack interactive button callback (approve / reject from Slack)</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/test/slack</code></td><td>Validate Slack Bot token connectivity</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/test/jira</code></td><td>Validate Jira credentials connectivity</td></tr>
     </table>
   </div>
 
@@ -1000,7 +1108,7 @@ def route_after_self_heal(state):
 
 <!-- ══════════════ DEPLOY ══════════════ -->
 <section id="deploy">
-  <div class="section-label">07 — Production Deploy</div>
+  <div class="section-label">08 — Production Deploy</div>
   <h2>Docker Deployment</h2>
 
   <pre>docker build -t aegisops .
@@ -1032,8 +1140,16 @@ docker run -p 8004:8004 \
       <tr><td><code>OPENROUTER_MODEL</code></td><td><code>google/gemini-2.5-flash</code></td><td><span class="opt">No</span></td><td>Default LLM model</td></tr>
       <tr><td><code>OPENROUTER_BASE_URL</code></td><td>openrouter.ai/api/v1</td><td><span class="opt">No</span></td><td>Override for local LLMs (Ollama, etc.)</td></tr>
       <tr><td><code>TAVILY_API_KEY</code></td><td>—</td><td><span class="opt">No</span></td><td>Enables Tavily real-time web search</td></tr>
-      <tr><td><code>SLACK_WEBHOOK_URL</code></td><td>—</td><td><span class="opt">No</span></td><td>Slack incident notifications</td></tr>
-      <tr><td><code>INCIDENT_API_KEY</code></td><td>—</td><td><span class="opt">Prod only</span></td><td>Protects <code>/api/incident/*</code> routes</td></tr>
+      <tr><td><code>SLACK_WEBHOOK_URL</code></td><td>—</td><td><span class="opt">No</span></td><td>One-way Slack incident notifications</td></tr>
+      <tr><td><code>SLACK_BOT_TOKEN</code></td><td>—</td><td><span class="opt">No</span></td><td>Rich Slack Bot (Block Kit, interactive approvals). Supersedes webhook.</td></tr>
+      <tr><td><code>SLACK_CHANNEL_ID</code></td><td>—</td><td><span class="opt">No</span></td><td>Channel the Slack Bot posts to</td></tr>
+      <tr><td><code>SLACK_SIGNING_SECRET</code></td><td>—</td><td><span class="opt">No</span></td><td>Verifies <code>/api/slack/action</code> callbacks</td></tr>
+      <tr><td><code>SLACK_DRY_RUN</code></td><td><code>false</code></td><td><span class="opt">No</span></td><td><code>true</code> = log Slack calls without hitting API</td></tr>
+      <tr><td><code>JIRA_BASE_URL</code></td><td>—</td><td><span class="opt">No</span></td><td>Atlassian domain (e.g. <code>https://co.atlassian.net</code>)</td></tr>
+      <tr><td><code>JIRA_EMAIL</code></td><td>—</td><td><span class="opt">No</span></td><td>Atlassian account email for API auth</td></tr>
+      <tr><td><code>JIRA_API_TOKEN</code></td><td>—</td><td><span class="opt">No</span></td><td>Jira API token</td></tr>
+      <tr><td><code>JIRA_PROJECT_KEY</code></td><td>—</td><td><span class="opt">No</span></td><td>Jira project key (e.g. <code>OPS</code>)</td></tr>
+      <tr><td><code>JIRA_DRY_RUN</code></td><td><code>false</code></td><td><span class="opt">No</span></td><td><code>true</code> = log Jira calls without hitting API</td></tr>
       <tr><td><code>ALLOW_CLIENT_API_KEYS</code></td><td><code>false</code></td><td><span class="opt">No</span></td><td><code>true</code> = dev/hackathon; <code>false</code> = production</td></tr>
       <tr><td><code>CHECKPOINT_DB_PATH</code></td><td><code>data/checkpoints.db</code></td><td><span class="opt">No</span></td><td>LangGraph checkpoint SQLite path</td></tr>
       <tr><td><code>RUNS_DB_PATH</code></td><td><code>data/runs.db</code></td><td><span class="opt">No</span></td><td>Run metadata SQLite path</td></tr>
@@ -1042,14 +1158,18 @@ docker run -p 8004:8004 \
 
   <h3 style="margin-top:1.5rem">Running Tests</h3>
   <pre>uv run pytest tests/ -v
-# tests/test_api.py          — FastAPI endpoint unit tests
-# tests/test_production.py   — Production mode integration tests (auth, persistence)</pre>
+# tests/test_api.py            — FastAPI endpoint unit tests (incl. /api/slack/action)
+# tests/test_production.py     — Production mode integration tests (auth, persistence)
+# tests/test_cost_tracker.py   — Token + USD cost tracker unit tests
+# tests/test_monitor_classify.py — Monitor log severity classifier tests
+# tests/test_jira_tool.py      — Jira tool dry-run and API tests
+# tests/test_slack_bot_tool.py — Slack Bot tool dry-run and Block Kit tests</pre>
 </section>
 <hr class="divider"/>
 
 <!-- ══════════════ TROUBLESHOOT ══════════════ -->
 <section id="troubleshoot">
-  <div class="section-label">08 — Troubleshoot</div>
+  <div class="section-label">09 — Troubleshoot</div>
   <h2>Common Errors & Fixes</h2>
 
   <div class="callout warn">
@@ -1074,7 +1194,7 @@ docker run -p 8004:8004 \
 
 <!-- ══════════════ FOOTER ══════════════ -->
 <footer>
-  Built for the <span>AI Accelerator Hackathon 2026</span> &nbsp;·&nbsp; Last updated June 13 2026 &nbsp;·&nbsp; v2: start.sh · Save Keys · Clear Cache wipes all keys
+  Built for the <span>AI Accelerator Hackathon 2026</span> &nbsp;·&nbsp; Last updated June 14 2026 &nbsp;·&nbsp; v3: Jira auto-ticketing · Slack Bot Block Kit · Monitors (SSH/Local/Syslog) · 10 new API endpoints
 </footer>
 
 </body>

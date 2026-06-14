@@ -56,7 +56,14 @@ Before installing, make sure you have the following installed:
 |---|---|---|---|
 | `OPENROUTER_API_KEY` | **Yes** | Powers all LLM agents (Gemini, GPT-4o, Claude, etc.) | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | `TAVILY_API_KEY` | Optional | Enhanced real-time web search | [tavily.com](https://tavily.com) |
-| `SLACK_WEBHOOK_URL` | Optional | Automated Slack incident alerts | Slack App settings |
+| `SLACK_WEBHOOK_URL` | Optional | One-way Slack incident notifications | Slack App settings |
+| `SLACK_BOT_TOKEN` | Optional | Rich Slack Bot integration (Block Kit approvals, threaded updates) | Slack App → OAuth & Permissions |
+| `SLACK_CHANNEL_ID` | Optional (with Bot token) | Channel the bot posts to | Slack channel details |
+| `SLACK_SIGNING_SECRET` | Optional (with Bot token) | Verifies interactive button callbacks | Slack App → Basic Information |
+| `JIRA_BASE_URL` | Optional | Jira instance URL for auto-ticket creation | Your Atlassian domain |
+| `JIRA_EMAIL` | Optional (with Jira) | Atlassian account email | Your Atlassian account |
+| `JIRA_API_TOKEN` | Optional (with Jira) | Jira API token | Atlassian account settings |
+| `JIRA_PROJECT_KEY` | Optional (with Jira) | Jira project key (e.g. `OPS`) | Your Jira project |
 
 ---
 
@@ -119,7 +126,20 @@ OPENROUTER_MODEL=google/gemini-2.5-flash  # Default model (can change in UI too)
 
 # ─── Optional Integrations ────────────────────────────────────────────────────
 TAVILY_API_KEY=tvly-...              # Real-time web search (falls back to DuckDuckGo)
-SLACK_WEBHOOK_URL=https://hooks...  # Slack notifications on triage + remediation
+SLACK_WEBHOOK_URL=https://hooks...  # One-way Slack notifications on triage + remediation
+
+# Slack Bot (rich integration: Block Kit approvals, threaded updates, interactive buttons)
+SLACK_BOT_TOKEN=xoxb-...            # Slack Bot OAuth token
+SLACK_CHANNEL_ID=C0123456789        # Channel the bot posts to
+SLACK_SIGNING_SECRET=...            # Verifies /api/slack/action callbacks
+SLACK_DRY_RUN=false                 # true = log without hitting Slack API
+
+# Jira Integration (all four required together; omit to disable)
+JIRA_BASE_URL=https://yourcompany.atlassian.net
+JIRA_EMAIL=you@yourcompany.com
+JIRA_API_TOKEN=your-jira-api-token
+JIRA_PROJECT_KEY=OPS
+JIRA_DRY_RUN=false                  # true = log without hitting Jira API
 
 # ─── Production Security ──────────────────────────────────────────────────────
 # Incident API key headers are disabled for this app.
@@ -255,6 +275,10 @@ uv run pytest tests/ -v
 The test suite covers:
 - `tests/test_api.py` — FastAPI endpoint unit tests
 - `tests/test_production.py` — Production mode integration tests (auth, persistence)
+- `tests/test_cost_tracker.py` — Token + USD cost tracker unit tests
+- `tests/test_monitor_classify.py` — Monitor log severity classifier tests
+- `tests/test_jira_tool.py` — Jira tool dry-run and API tests
+- `tests/test_slack_bot_tool.py` — Slack Bot tool dry-run and Block Kit tests
 
 ---
 
@@ -305,6 +329,8 @@ Before going to production, verify these settings:
 | # | Agent | Role |
 |---|---|---|
 | 1 | **Triage Agent** | Parses raw logs/metrics, identifies the suspected vendor and severity (Sev1–Sev4), sends initial Slack alert |
+| 1b | **Jira Integration** | Runs immediately after triage; creates a Jira ticket with severity, vendor, and a link to the live run. Non-blocking — failures never stop the pipeline |
+| 1c | **Slack Report** | Sends a rich Slack Bot message (Block Kit) after triage with an interactive Approve/Reject button. Falls back to webhook if Bot token is absent |
 | 2 | **RAG Cache** | Searches historical incident memory for known patterns; if confidence ≥ 0.85, skips directly to remediation |
 | 3 | **RCA Agent** | Generates hypotheses, determines routing (browser / web search / human escalation) |
 | 4 | **Browser Agent** | Uses Playwright to scrape the vendor's official status page for live incident details |
@@ -320,7 +346,7 @@ Before going to production, verify these settings:
 ```
 vendor_outage_investigator/
 ├── backend/
-│   ├── agents/           # One file per agent (triage, rca, browser, web_search, remediation, reporter, self_heal)
+│   ├── agents/           # One file per agent (triage, jira, slack, rca, browser, web_search, remediation, reporter, self_heal)
 │   ├── api/
 │   │   ├── app.py        # FastAPI app — all HTTP routes + lifespan startup
 │   │   ├── auth.py       # Optional API key authentication middleware
@@ -348,7 +374,9 @@ vendor_outage_investigator/
 │   │   └── payment_outage.py  # Built-in test scenarios (Stripe, AWS, Twilio, etc.)
 │   ├── tools/
 │   │   ├── llm_config.py       # get_llm() factory and agent_rules loader
+│   │   ├── jira_tool.py        # Jira API tool (create/update/comment + dry-run)
 │   │   ├── slack_tool.py       # Slack webhook tool (LangChain @tool)
+│   │   ├── slack_bot_tool.py   # Slack Bot tool (Block Kit, approval buttons, threaded updates)
 │   │   ├── vendor_status_tool.py # Playwright status page scraper
 │   │   └── web_search_tool.py  # Tavily / DuckDuckGo search tool
 │   ├── utils/

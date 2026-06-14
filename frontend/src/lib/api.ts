@@ -1,5 +1,9 @@
 const API_BASE = '/api/incident'
 
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { ...extra }
+}
+
 export interface StartIncidentResponse {
   run_id: string
   status: string
@@ -52,6 +56,26 @@ export async function startIncident(
   // server has no server-side key configured.
   if (options.openrouterApiKey) body.openrouter_api_key = options.openrouterApiKey
   if (options.tavilyApiKey) body.tavily_api_key = options.tavilyApiKey
+
+  // Forward Jira credentials from localStorage so the backend can create tickets
+  const jiraBaseUrl = localStorage.getItem('jira_base_url') || ''
+  const jiraEmail = localStorage.getItem('jira_email') || ''
+  const jiraApiToken = localStorage.getItem('jira_api_token') || ''
+  const jiraProjectKey = localStorage.getItem('jira_project_key') || ''
+  if (jiraBaseUrl && jiraEmail && jiraApiToken) {
+    body.jira_base_url = jiraBaseUrl
+    body.jira_email = jiraEmail
+    body.jira_api_token = jiraApiToken
+    if (jiraProjectKey) body.jira_project_key = jiraProjectKey
+  }
+
+  // Forward Slack credentials from localStorage so the backend can post notifications
+  const slackBotToken = localStorage.getItem('slack_bot_token') || ''
+  const slackChannelId = localStorage.getItem('slack_channel_id') || ''
+  if (slackBotToken && slackChannelId) {
+    body.slack_bot_token = slackBotToken
+    body.slack_channel_id = slackChannelId
+  }
 
   const res = await fetch(API_BASE, {
     method: 'POST',

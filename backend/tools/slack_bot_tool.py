@@ -41,8 +41,19 @@ def _build_approval_blocks(
     remediation_steps: list,
     jira_url: str | None,
 ) -> list:
-    steps_text = "\n".join(f"• {s}" for s in (remediation_steps or [])[:5]) or "_None yet_"
+    # Slack section text limit is 3000 chars; header text limit is 150 chars
+    _MAX_SECTION = 2900
     jira_section = f"\n*Jira:* <{jira_url}|View Ticket>" if jira_url else ""
+    root_cause_body = (root_cause or "Under investigation")
+    # Reserve space for prefix "*Root Cause:*\n" (15 chars) and jira_section
+    max_rc = _MAX_SECTION - 15 - len(jira_section)
+    if len(root_cause_body) > max_rc:
+        root_cause_body = root_cause_body[:max_rc - 3] + "..."
+
+    raw_steps = [str(s)[:200] for s in (remediation_steps or [])[:5]]
+    steps_text = "\n".join(f"• {s}" for s in raw_steps) or "_None yet_"
+    if len(steps_text) > _MAX_SECTION - 25:
+        steps_text = steps_text[:_MAX_SECTION - 28] + "..."
 
     blocks = [
         {
@@ -58,7 +69,7 @@ def _build_approval_blocks(
         },
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*Root Cause:*\n{root_cause}{jira_section}"}
+            "text": {"type": "mrkdwn", "text": f"*Root Cause:*\n{root_cause_body}{jira_section}"}
         },
         {
             "type": "section",

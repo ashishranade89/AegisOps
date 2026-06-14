@@ -11,19 +11,22 @@ interface NodeMeta {
 }
 
 const NODES: NodeMeta[] = [
-  { id: 'triage', label: 'Triage', x: 80, y: 150, role: 'Telemetry Parser' },
-  { id: 'rag_search', label: 'RAG Lookup', x: 230, y: 150, role: 'History Search' },
-  { id: 'rca', label: 'RCA Decision', x: 380, y: 150, role: 'Routing Planner' },
-  { id: 'browser', label: 'Stagehand Scrape', x: 530, y: 75, role: 'Browser Scraper' },
-  { id: 'web_search', label: 'Tavily Search', x: 530, y: 225, role: 'Web Search Fallback' },
-  { id: 'self_heal', label: 'Self Healing', x: 380, y: 300, role: 'Exception recovery' },
-  { id: 'remediation', label: 'Remediation', x: 700, y: 150, role: 'Slack/Jira containment' },
-  { id: 'reporter', label: 'Report Generator', x: 850, y: 150, role: 'Postmortem compiler' },
-  { id: 'store_incident', label: 'Archive RAG', x: 990, y: 150, role: 'ChromaDB Archiver' },
+  { id: 'triage', label: 'Triage', x: 80, y: 175, role: 'Telemetry Parser' },
+  { id: 'jira', label: 'Jira Ticket', x: 80, y: 75, role: 'Incident Tracker' },
+  { id: 'rag_search', label: 'RAG Lookup', x: 230, y: 175, role: 'History Search' },
+  { id: 'rca', label: 'RCA Decision', x: 380, y: 175, role: 'Routing Planner' },
+  { id: 'browser', label: 'Stagehand Scrape', x: 530, y: 100, role: 'Browser Scraper' },
+  { id: 'web_search', label: 'Tavily Search', x: 530, y: 250, role: 'Web Search Fallback' },
+  { id: 'self_heal', label: 'Self Healing', x: 380, y: 325, role: 'Exception recovery' },
+  { id: 'remediation', label: 'Remediation', x: 700, y: 175, role: 'Containment' },
+  { id: 'reporter', label: 'Report Generator', x: 850, y: 175, role: 'Postmortem compiler' },
+  { id: 'slack_report', label: 'Slack Report', x: 850, y: 75, role: 'Notification Relay' },
+  { id: 'store_incident', label: 'Archive RAG', x: 990, y: 175, role: 'ChromaDB Archiver' },
 ]
 
 // List of connections to draw in graph
 const CONNECTIONS = [
+  { from: 'triage', to: 'jira' },
   { from: 'triage', to: 'rag_search' },
   { from: 'rag_search', to: 'rca', curve: false },
   { from: 'rag_search', to: 'remediation', curve: true, controlY: 30 }, // Bypass path
@@ -34,6 +37,7 @@ const CONNECTIONS = [
   { from: 'browser', to: 'remediation' },
   { from: 'web_search', to: 'remediation' },
   { from: 'remediation', to: 'reporter' },
+  { from: 'reporter', to: 'slack_report' },
   { from: 'reporter', to: 'store_incident' },
   // Self-heal triggers (failure routing)
   { from: 'rca', to: 'self_heal', dashed: true },
@@ -55,12 +59,14 @@ export function TopologyGraph({ activeAgent, completedNodes, collapsed = false, 
   const activeNodeId = (() => {
     if (!activeAgent) return null
     if (activeAgent.includes('Triage')) return 'triage'
+    if (activeAgent === 'Jira Integration') return 'jira'
     if (activeAgent.includes('RAG Cache') || activeAgent.includes('RAG Search')) return 'rag_search'
     if (activeAgent.includes('Root Cause')) return 'rca'
     if (activeAgent.includes('Browser') || activeAgent.includes('Scraper')) return 'browser'
     if (activeAgent.includes('Web Search')) return 'web_search'
     if (activeAgent.includes('Self-Heal') || activeAgent.includes('Healing')) return 'self_heal'
     if (activeAgent.includes('Remediation')) return 'remediation'
+    if (activeAgent === 'Slack Report') return 'slack_report'
     if (activeAgent.includes('Reporter') || activeAgent.includes('Report')) return 'reporter'
     if (activeAgent.includes('Storage') || activeAgent.includes('Archive')) return 'store_incident'
     return null
@@ -95,7 +101,7 @@ export function TopologyGraph({ activeAgent, completedNodes, collapsed = false, 
 
       {!collapsed && (
         <div className="w-full overflow-x-auto custom-scrollbar pb-2">
-          <svg viewBox="0 0 1070 360" className="w-full h-auto min-w-[700px] block" style={{ overflow: 'visible', maxHeight: '360px' }}>
+          <svg viewBox="0 0 1070 400" className="w-full h-auto min-w-[700px] block" style={{ overflow: 'visible', maxHeight: '400px' }}>
           <defs>
             {/* Glow Filter for Active Nodes */}
             <filter id="svg-glow" x="-30%" y="-30%" width="160%" height="160%">

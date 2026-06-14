@@ -1,6 +1,7 @@
 from langchain.tools import tool
 import json
 import logging
+import re
 import base64
 import httpx
 from backend.utils.config import get_config
@@ -30,29 +31,47 @@ def create_jira_incident(
     suspected_vendor: str,
     internal_findings: str,
     run_url: str,
+    jira_base_url: str = "",
+    jira_email: str = "",
+    jira_api_token: str = "",
+    jira_project_key: str = "",
 ) -> str:
     """
     Creates a Jira incident ticket after triage. Returns ticket_id and ticket_url.
     Skips silently if Jira is not configured. Returns dry-run mock if JIRA_DRY_RUN=true.
+    Optional credential params override env-var config when provided.
     """
     config = get_config()
 
-    if not config.jira_configured():
+    # Per-request credentials override env-var defaults
+    effective_base_url = (jira_base_url.strip() or config.jira_base_url).rstrip("/")
+    effective_email = jira_email.strip() or config.jira_email
+    effective_api_token = jira_api_token.strip() or config.jira_api_token
+    effective_project_key = jira_project_key.strip() or config.jira_project_key
+
+    # Strip issue-number suffix if user pasted an issue key (e.g. "PROJ-1" → "PROJ")
+    effective_project_key = re.sub(r"-\d+$", "", effective_project_key)
+
+    if not (effective_base_url and effective_email and effective_api_token):
         logger.warning("Jira not configured — skipping ticket creation")
         return json.dumps({"skipped": True, "reason": "Jira not configured"})
 
+    if not effective_project_key:
+        logger.error("Jira project key is not set — cannot create ticket")
+        return json.dumps({"error": "Jira project key is not set. Set JIRA_PROJECT_KEY in .env or provide it in the UI settings."})
+
     if config.jira_dry_run:
-        mock_id = f"{config.jira_project_key}-DRY"
+        mock_id = f"{effective_project_key}-DRY"
         return json.dumps({
             "dry_run": True,
             "ticket_id": mock_id,
-            "ticket_url": f"{config.jira_base_url}/browse/{mock_id}",
+            "ticket_url": f"{effective_base_url}/browse/{mock_id}",
         })
 
     priority = _severity_to_priority(severity)
     payload = {
         "fields": {
-            "project": {"key": config.jira_project_key},
+            "project": {"key": effective_project_key},
             "summary": f"[{severity.upper()}] Vendor Outage: {suspected_vendor} — {incident_id}",
             "description": {
                 "type": "doc",
@@ -74,20 +93,30 @@ def create_jira_incident(
         }
     }
 
+    headers = {
+        "Authorization": _jira_auth_header(effective_email, effective_api_token),
+        "Content-Type": "application/json",
+    }
+    url = f"{effective_base_url}/rest/api/3/issue"
+
     try:
-        resp = httpx.post(
-            f"{config.jira_base_url}/rest/api/3/issue",
-            json=payload,
-            headers={
-                "Authorization": _jira_auth_header(config.jira_email, config.jira_api_token),
-                "Content-Type": "application/json",
-            },
-            timeout=10.0,
-        )
-        resp.raise_for_status()
+        resp = httpx.post(url, json=payload, headers=headers, timeout=10.0)
+        if resp.status_code == 400:
+            # "Incident" issue type may not exist — always retry with "Task"
+            logger.warning("Jira 400 with 'Incident' type, retrying with 'Task': %s", resp.text)
+            payload["fields"]["issuetype"] = {"name": "Task"}
+            resp = httpx.post(url, json=payload, headers=headers, timeout=10.0)
+        if not resp.is_success:
+            error_detail = resp.text
+            logger.error("Jira create_issue failed (%s): %s", resp.status_code, error_detail)
+            raise httpx.HTTPStatusError(
+                f"Jira API error {resp.status_code}: {error_detail}",
+                request=resp.request,
+                response=resp,
+            )
         data = resp.json()
         ticket_id = data["key"]
-        ticket_url = f"{config.jira_base_url}/browse/{ticket_id}"
+        ticket_url = f"{effective_base_url}/browse/{ticket_id}"
         logger.info("Jira ticket created: %s", ticket_url)
         return json.dumps({"ticket_id": ticket_id, "ticket_url": ticket_url})
     except Exception as e:

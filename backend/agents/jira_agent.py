@@ -24,12 +24,16 @@ async def jira_node(state: IncidentState) -> IncidentState:
         # Build a run URL for the Jira ticket description
         run_url = f"http://localhost:5173/run/{run_id}"
 
-        result_str = create_jira_incident.invoke({
+        result_str = await create_jira_incident.ainvoke({
             "incident_id": run_id,
             "severity": state.get("severity") or "unknown",
             "suspected_vendor": state.get("suspected_vendor") or "Unknown",
             "internal_findings": state.get("internal_findings") or "No findings yet",
             "run_url": run_url,
+            "jira_base_url": state.get("jira_base_url_override") or "",
+            "jira_email": state.get("jira_email_override") or "",
+            "jira_api_token": state.get("jira_api_token_override") or "",
+            "jira_project_key": state.get("jira_project_key_override") or "",
         })
         result = json.loads(result_str)
 
@@ -48,6 +52,10 @@ async def jira_node(state: IncidentState) -> IncidentState:
         if result.get("dry_run") or result.get("ticket_id"):
             ticket_id = result.get("ticket_id", "")
             ticket_url = result.get("ticket_url", "")
+            await send_sse_event(run_id, "jira_ticket", {
+                "ticket_id": ticket_id,
+                "ticket_url": ticket_url,
+            })
             await send_sse_event(run_id, "agent_end", {
                 "agent_name": "Jira Integration",
                 "detail": f"Ticket created: {ticket_id}"

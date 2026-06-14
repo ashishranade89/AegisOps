@@ -52,7 +52,7 @@ class AppConfig:
 
     @property
     def jira_project_key(self) -> str:
-        return os.getenv("JIRA_PROJECT_KEY") or "OPS"
+        return os.getenv("JIRA_PROJECT_KEY") or ""
 
     @property
     def jira_dry_run(self) -> bool:

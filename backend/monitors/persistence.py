@@ -40,7 +40,7 @@ def init_monitors_db() -> None:
         # Non-destructive migration for existing tables
         try:
             c.execute("ALTER TABLE monitors ADD COLUMN auto_remediate INTEGER NOT NULL DEFAULT 0")
-        except Exception:
+        except sqlite3.OperationalError:
             pass  # column already exists
         c.commit()
 

@@ -492,9 +492,94 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
 </section>
 <hr class="divider"/>
 
+<!-- ══════════════ AGENTS ══════════════ -->
+<section id="agents">
+  <div class="section-label">03 — Agent Swarm</div>
+  <h2>The Agent Pipeline</h2>
+  <p>Each agent is an <code>async</code> function: reads <code>IncidentState</code> → emits <code>agent_start</code> SSE → calls LLM / external API → parses response → emits <code>agent_end</code> + optional <code>cost_update</code> SSE → returns partial state update.</p>
+
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-num">AGENT 01</div>
+      <h3>Triage Agent</h3>
+      <p>Parses raw logs/metrics. Identifies suspected vendor, severity (P1–P4), affected service, and structured events.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 01b</div>
+      <h3>Jira Integration</h3>
+      <p>Runs immediately after triage. Creates a Jira ticket with severity, vendor, and a deep link to the live run. Non-blocking — failures are logged but never stop the pipeline.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 01c</div>
+      <h3>Slack Report</h3>
+      <p>Posts a rich Block Kit Slack message after triage with an interactive Approve/Reject button. Falls back to webhook if Bot token is absent. Updates thread on resume.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 02</div>
+      <h3>RAG Cache</h3>
+      <p>Searches historical incident memory (ChromaDB + JSON fallback). Returns confidence score. High confidence → skip directly to remediation.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 03</div>
+      <h3>RCA Agent</h3>
+      <p>Generates investigation hypotheses with confidence scores. Sets routing flags to determine if browser scraping, web search, or human escalation is needed.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 04</div>
+      <h3>Browser Agent</h3>
+      <p>Uses Playwright/Stagehand to navigate the vendor's official status page and extract live incident data. Falls back to mock data if Playwright is unavailable.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 05</div>
+      <h3>Web Search Agent</h3>
+      <p>Queries Tavily (or DuckDuckGo fallback) for community and social media confirmation. Passes results to LLM for synthesis.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 06</div>
+      <h3>Remediation Agent</h3>
+      <p>Node behind the HITL gate. Checks approval status. If approved, calls LLM for containment steps and recommendations. Sends remediation Slack update.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 07</div>
+      <h3>Reporter Agent</h3>
+      <p>Synthesises all findings into a professional Markdown postmortem: summary, timeline, impact, RCA, remediation steps, and long-term recommendations.</p>
+    </div>
+    <div class="agent-card">
+      <div class="agent-num">AGENT 08</div>
+      <h3>Self-Heal Agent</h3>
+      <p>Intercepts any node failure. Retries up to 3×, reroutes around broken tools. Escalates to Reporter if retry limit exceeded.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.8rem">LangGraph Routing Logic</h3>
+  <pre>
+# After RAG lookup
+def route_after_rag(state):
+    if state.get("last_error"):           return "self_heal"
+    if state["rag_confidence"] >= 0.85:   return "remediation"   # fast path
+    return "rca"
+
+# After RCA
+def route_after_rca(state):
+    if state.get("last_error"):               return "self_heal"
+    if state.get("needs_human_escalation"):   return "reporter"  # skip remediation
+    if state.get("needs_browser"):            return "browser"
+    if state.get("needs_web_search"):         return "web_search"
+    return "remediation"
+
+# After Self-Heal (retry routing)
+def route_after_self_heal(state):
+    if state.get("needs_human_escalation"):   return "reporter"
+    if state.get("needs_web_search") and not state.get("needs_browser"):
+        return "web_search"
+    if state.get("needs_browser"):            return "browser"
+    return "rca"</pre>
+</section>
+<hr class="divider"/>
+
 <!-- ══════════════ WORKFLOW DIAGRAM ══════════════ -->
 <section id="workflow">
-  <div class="section-label">03 — How It Works</div>
+  <div class="section-label">04 — How It Works</div>
   <h2>Agent Workflow Diagram</h2>
   <p>The pipeline is a stateful LangGraph DAG. Every node reads and writes a single shared <code>IncidentState</code> object. Conditional routing functions inspect state flags after each node to decide the next hop.</p>
 
@@ -674,157 +759,9 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
 </section>
 <hr class="divider"/>
 
-<!-- ══════════════ AGENTS ══════════════ -->
-<section id="agents">
-  <div class="section-label">04 — Agent Swarm</div>
-  <h2>The Agent Pipeline</h2>
-  <p>Each agent is an <code>async</code> function: reads <code>IncidentState</code> → emits <code>agent_start</code> SSE → calls LLM / external API → parses response → emits <code>agent_end</code> + optional <code>cost_update</code> SSE → returns partial state update.</p>
-
-  <div class="agent-grid">
-    <div class="agent-card">
-      <div class="agent-num">AGENT 01</div>
-      <h3>Triage Agent</h3>
-      <p>Parses raw logs/metrics. Identifies suspected vendor, severity (P1–P4), affected service, and structured events.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 01b</div>
-      <h3>Jira Integration</h3>
-      <p>Runs immediately after triage. Creates a Jira ticket with severity, vendor, and a deep link to the live run. Non-blocking — failures are logged but never stop the pipeline.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 01c</div>
-      <h3>Slack Report</h3>
-      <p>Posts a rich Block Kit Slack message after triage with an interactive Approve/Reject button. Falls back to webhook if Bot token is absent. Updates thread on resume.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 02</div>
-      <h3>RAG Cache</h3>
-      <p>Searches historical incident memory (ChromaDB + JSON fallback). Returns confidence score. High confidence → skip directly to remediation.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 03</div>
-      <h3>RCA Agent</h3>
-      <p>Generates investigation hypotheses with confidence scores. Sets routing flags to determine if browser scraping, web search, or human escalation is needed.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 04</div>
-      <h3>Browser Agent</h3>
-      <p>Uses Playwright/Stagehand to navigate the vendor's official status page and extract live incident data. Falls back to mock data if Playwright is unavailable.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 05</div>
-      <h3>Web Search Agent</h3>
-      <p>Queries Tavily (or DuckDuckGo fallback) for community and social media confirmation. Passes results to LLM for synthesis.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 06</div>
-      <h3>Remediation Agent</h3>
-      <p>Node behind the HITL gate. Checks approval status. If approved, calls LLM for containment steps and recommendations. Sends remediation Slack update.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 07</div>
-      <h3>Reporter Agent</h3>
-      <p>Synthesises all findings into a professional Markdown postmortem: summary, timeline, impact, RCA, remediation steps, and long-term recommendations.</p>
-    </div>
-    <div class="agent-card">
-      <div class="agent-num">AGENT 08</div>
-      <h3>Self-Heal Agent</h3>
-      <p>Intercepts any node failure. Retries up to 3×, reroutes around broken tools. Escalates to Reporter if retry limit exceeded.</p>
-    </div>
-  </div>
-
-  <h3 style="margin-top:1.8rem">LangGraph Routing Logic</h3>
-  <pre>
-# After RAG lookup
-def route_after_rag(state):
-    if state.get("last_error"):           return "self_heal"
-    if state["rag_confidence"] >= 0.85:   return "remediation"   # fast path
-    return "rca"
-
-# After RCA
-def route_after_rca(state):
-    if state.get("last_error"):               return "self_heal"
-    if state.get("needs_human_escalation"):   return "reporter"  # skip remediation
-    if state.get("needs_browser"):            return "browser"
-    if state.get("needs_web_search"):         return "web_search"
-    return "remediation"
-
-# After Self-Heal (retry routing)
-def route_after_self_heal(state):
-    if state.get("needs_human_escalation"):   return "reporter"
-    if state.get("needs_web_search") and not state.get("needs_browser"):
-        return "web_search"
-    if state.get("needs_browser"):            return "browser"
-    return "rca"</pre>
-</section>
-<hr class="divider"/>
-
-<!-- ══════════════ MONITORS ══════════════ -->
-<section id="monitors">
-  <div class="section-label">05 — Log Source Monitors</div>
-  <h2>Continuous Log Monitoring</h2>
-  <p>The monitors subsystem runs background asyncio tasks that watch log sources and automatically open an investigation whenever a critical or warning-level entry is detected. Each monitor enforces a <strong>5-minute trigger cooldown</strong> to prevent runaway LLM calls.</p>
-
-  <div class="card-grid">
-    <div class="card">
-      <h3>📁 Local File Monitor</h3>
-      <p>Polls a local file path by byte offset — only reads new bytes since the last check. Detects log rotation automatically.</p>
-    </div>
-    <div class="card">
-      <h3>🖥️ SSH / SFTP Monitor</h3>
-      <p>Connects to a remote server via SSH and polls a log file by byte offset. Credentials are stored encrypted (Fernet) in <code>data/monitor.key</code>. Detects log rotation on remote files.</p>
-    </div>
-    <div class="card">
-      <h3>📡 Syslog UDP Monitor</h3>
-      <p>Listens on a configurable UDP port for pushed syslog messages (RFC 3164 / 5424). Ideal for network devices and legacy systems.</p>
-    </div>
-    <div class="card">
-      <h3>🔌 Syslog TCP Monitor</h3>
-      <p>Accepts pushed syslog over TCP — reliable delivery for high-volume sources or when packet loss is unacceptable.</p>
-    </div>
-  </div>
-
-  <h3 style="margin-top:1.5rem">Monitor Lifecycle</h3>
-  <ol class="steps">
-    <li><div>Create a monitor via <strong>Log Sources</strong> UI page or <code>POST /api/monitors</code></div></li>
-    <li><div>Monitor manager (started on app lifespan) spawns an asyncio task for each enabled monitor</div></li>
-    <li><div>On each poll interval, new log lines are classified by the <strong>severity classifier</strong> (critical / warning / info)</div></li>
-    <li><div>If a critical or warning line is found and the cooldown has expired, the monitor calls <code>POST /api/incident</code> internally to open a new investigation</div></li>
-    <li><div>Enable / disable monitors live via <code>POST /api/monitors/{mid}/toggle</code> — no restart required</div></li>
-  </ol>
-
-  <div class="callout">
-    <strong>Auto-Remediate Policy</strong> — Each monitor has an <code>auto_remediate</code> toggle. When enabled, the HITL approval gate is bypassed and remediation executes automatically for alerts triggered by that monitor.
-  </div>
-
-  <h3 style="margin-top:1.5rem">Monitor Fields</h3>
-  <div class="tbl-wrap">
-    <table>
-      <tr><th>Field</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>name</code></td><td><span class="req">Yes</span></td><td>Display name</td></tr>
-      <tr><td><code>monitor_type</code></td><td><span class="req">Yes</span></td><td><code>local</code> | <code>ssh</code> | <code>syslog_udp</code> | <code>syslog_tcp</code></td></tr>
-      <tr><td><code>log_path</code></td><td>local / ssh</td><td>Absolute path to the log file</td></tr>
-      <tr><td><code>host</code></td><td>ssh</td><td>Remote hostname or IP</td></tr>
-      <tr><td><code>username</code></td><td>ssh</td><td>SSH username (stored encrypted)</td></tr>
-      <tr><td><code>password</code></td><td>ssh</td><td>SSH password (stored encrypted, optional if key-based)</td></tr>
-      <tr><td><code>port</code></td><td>syslog</td><td>UDP/TCP port to listen on (default 514)</td></tr>
-      <tr><td><code>poll_interval</code></td><td><span class="opt">No</span></td><td>Seconds between polls (default 30)</td></tr>
-      <tr><td><code>auto_remediate</code></td><td><span class="opt">No</span></td><td>Skip HITL gate for this monitor's alerts</td></tr>
-      <tr><td><code>enabled</code></td><td><span class="opt">No</span></td><td>Start/stop monitoring without deleting the config</td></tr>
-    </table>
-  </div>
-
-  <h3 style="margin-top:1.5rem">LogGenerator — Synthetic Log Daemon</h3>
-  <p>The <code>LogGenerator/</code> directory contains a background daemon for local development and demos. It writes curated log lines (info / warning / critical) to <code>logs/incident.log</code> on a configurable interval.</p>
-  <pre>cd LogGenerator
-python daemon.py          # reads settings.cfg (copy settings.cfg.example first)</pre>
-  <div class="callout">Point a Local File Monitor at <code>LogGenerator/logs/incident.log</code> to see end-to-end automated incident triggering without needing a real log source.</div>
-</section>
-<hr class="divider"/>
-
 <!-- ══════════════ MINDMAP ══════════════ -->
 <section id="mindmap">
-  <div class="section-label">06 — Mind Map</div>
+  <div class="section-label">05 — Mind Map</div>
   <h2>System Architecture Mind Map</h2>
   <p>Full system decomposition — all layers, modules, and concepts at a glance.</p>
 
@@ -1042,6 +979,69 @@ python daemon.py          # reads settings.cfg (copy settings.cfg.example first)
       <text x="697" y="610" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Endpoint summary</text>
     </svg>
   </div>
+</section>
+<hr class="divider"/>
+
+<!-- ══════════════ MONITORS ══════════════ -->
+<section id="monitors">
+  <div class="section-label">06 — Log Source Monitors</div>
+  <h2>Continuous Log Monitoring</h2>
+  <p>The monitors subsystem runs background asyncio tasks that watch log sources and automatically open an investigation whenever a critical or warning-level entry is detected. Each monitor enforces a <strong>5-minute trigger cooldown</strong> to prevent runaway LLM calls.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>📁 Local File Monitor</h3>
+      <p>Polls a local file path by byte offset — only reads new bytes since the last check. Detects log rotation automatically.</p>
+    </div>
+    <div class="card">
+      <h3>🖥️ SSH / SFTP Monitor</h3>
+      <p>Connects to a remote server via SSH and polls a log file by byte offset. Credentials are stored encrypted (Fernet) in <code>data/monitor.key</code>. Detects log rotation on remote files.</p>
+    </div>
+    <div class="card">
+      <h3>📡 Syslog UDP Monitor</h3>
+      <p>Listens on a configurable UDP port for pushed syslog messages (RFC 3164 / 5424). Ideal for network devices and legacy systems.</p>
+    </div>
+    <div class="card">
+      <h3>🔌 Syslog TCP Monitor</h3>
+      <p>Accepts pushed syslog over TCP — reliable delivery for high-volume sources or when packet loss is unacceptable.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Monitor Lifecycle</h3>
+  <ol class="steps">
+    <li><div>Create a monitor via <strong>Log Sources</strong> UI page or <code>POST /api/monitors</code></div></li>
+    <li><div>Monitor manager (started on app lifespan) spawns an asyncio task for each enabled monitor</div></li>
+    <li><div>On each poll interval, new log lines are classified by the <strong>severity classifier</strong> (critical / warning / info)</div></li>
+    <li><div>If a critical or warning line is found and the cooldown has expired, the monitor calls <code>POST /api/incident</code> internally to open a new investigation</div></li>
+    <li><div>Enable / disable monitors live via <code>POST /api/monitors/{mid}/toggle</code> — no restart required</div></li>
+  </ol>
+
+  <div class="callout">
+    <strong>Auto-Remediate Policy</strong> — Each monitor has an <code>auto_remediate</code> toggle. When enabled, the HITL approval gate is bypassed and remediation executes automatically for alerts triggered by that monitor.
+  </div>
+
+  <h3 style="margin-top:1.5rem">Monitor Fields</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>name</code></td><td><span class="req">Yes</span></td><td>Display name</td></tr>
+      <tr><td><code>monitor_type</code></td><td><span class="req">Yes</span></td><td><code>local</code> | <code>ssh</code> | <code>syslog_udp</code> | <code>syslog_tcp</code></td></tr>
+      <tr><td><code>log_path</code></td><td>local / ssh</td><td>Absolute path to the log file</td></tr>
+      <tr><td><code>host</code></td><td>ssh</td><td>Remote hostname or IP</td></tr>
+      <tr><td><code>username</code></td><td>ssh</td><td>SSH username (stored encrypted)</td></tr>
+      <tr><td><code>password</code></td><td>ssh</td><td>SSH password (stored encrypted, optional if key-based)</td></tr>
+      <tr><td><code>port</code></td><td>syslog</td><td>UDP/TCP port to listen on (default 514)</td></tr>
+      <tr><td><code>poll_interval</code></td><td><span class="opt">No</span></td><td>Seconds between polls (default 30)</td></tr>
+      <tr><td><code>auto_remediate</code></td><td><span class="opt">No</span></td><td>Skip HITL gate for this monitor's alerts</td></tr>
+      <tr><td><code>enabled</code></td><td><span class="opt">No</span></td><td>Start/stop monitoring without deleting the config</td></tr>
+    </table>
+  </div>
+
+  <h3 style="margin-top:1.5rem">LogGenerator — Synthetic Log Daemon</h3>
+  <p>The <code>LogGenerator/</code> directory contains a background daemon for local development and demos. It writes curated log lines (info / warning / critical) to <code>logs/incident.log</code> on a configurable interval.</p>
+  <pre>cd LogGenerator
+python daemon.py          # reads settings.cfg (copy settings.cfg.example first)</pre>
+  <div class="callout">Point a Local File Monitor at <code>LogGenerator/logs/incident.log</code> to see end-to-end automated incident triggering without needing a real log source.</div>
 </section>
 <hr class="divider"/>
 

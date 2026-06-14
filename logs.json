@@ -1,0 +1,14 @@
+{
+  "raw_logs": [
+    {
+      "timestamp": "2026-06-14T12:44:00",
+      "level": "INFO",
+      "message": "Application started successfully"
+    },
+    {
+      "timestamp": "2026-06-14T12:45:10",
+      "level": "ERROR",
+      "message": "Database connection failed"
+    }
+  ]
+}

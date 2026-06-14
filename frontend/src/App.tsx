@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Link, useLocation } from 'react-router-do
 import { HomePage } from '@/pages/home'
 import { RunPage } from '@/pages/run'
 import { SourcesPage } from '@/pages/sources'
+import { AnalyticsPage } from '@/pages/analytics'
 import { useIncidentStore } from '@/stores/incident-store'
 import {
   Play,
@@ -14,6 +15,7 @@ import {
   ShieldCheck,
   BookOpen,
   ServerCog,
+  BarChart3,
 } from 'lucide-react'
 
 function Sidebar() {
@@ -23,6 +25,7 @@ function Sidebar() {
   const navItems: { path: string; label: string; icon: typeof Play }[] = [
     { path: '/', label: 'Trigger Simulation', icon: Play },
     { path: '/history', label: 'History & Knowledge', icon: BookOpen },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/sources', label: 'Log Sources', icon: ServerCog },
   ]
 
@@ -101,6 +104,9 @@ function Layout({ children }: { children: React.ReactNode }) {
     if (location.pathname === '/history') {
       return { crumb: 'Incident Room', title: 'History & Knowledge Base' }
     }
+    if (location.pathname === '/analytics') {
+      return { crumb: 'Incident Room', title: 'Analytics' }
+    }
     if (location.pathname === '/sources') {
       return { crumb: 'Configuration', title: 'Log Sources' }
     }
@@ -161,6 +167,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/run/:runId" element={<RunPage />} />
           <Route path="/history" element={<HomePage defaultTab="history" />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/sources" element={<SourcesPage />} />
         </Routes>
       </Layout>

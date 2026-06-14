@@ -22,9 +22,12 @@ async def trigger_incident(raw_logs: str, source_name: str, auto_remediate: bool
     port = int(os.getenv("API_PORT", _DEFAULT_PORT))
     base_url = os.getenv("API_BASE_URL", f"http://127.0.0.1:{port}")
 
+    # incident_api_key header auth is disabled in the local config; tolerate its
+    # absence so the monitor can still trigger the pipeline.
     headers: dict[str, str] = {}
-    if config.incident_api_key:
-        headers["Authorization"] = f"Bearer {config.incident_api_key}"
+    incident_api_key = getattr(config, "incident_api_key", "") or os.getenv("INCIDENT_API_KEY", "")
+    if incident_api_key:
+        headers["Authorization"] = f"Bearer {incident_api_key}"
 
     payload = {
         "scenario_type": "custom_telemetry",

@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Shield, ArrowRight,
   Sun, Moon,
-  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, ServerCog, X, AlertCircle
+  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, ServerCog, X, AlertCircle, BarChart3, ShieldCheck
 } from "lucide-react";
 import { NetworkParticles } from "@/components/vigilant/NetworkParticles";
 import { AIGlobeHero } from "@/components/vigilant/AIGlobeHero";
@@ -227,6 +227,13 @@ echo "Nameservers successfully updated."
   }
 };
 
+const adminItemStyle: React.CSSProperties = {
+  padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+  fontSize: 12.5, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8,
+  background: 'transparent', color: 'var(--ink-2)', transition: 'background 120ms',
+  width: '100%', textAlign: 'left',
+};
+
 export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" }) {
   const navigate = useNavigate();
   const [view, setView] = useState<"landing" | "app">(() => {
@@ -242,6 +249,9 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     // No stored preference — use system color scheme, default to dark
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
   });
+
+  // Admin dropdown (Analytics / Log Sources)
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // Sync state when defaultTab updates
   useEffect(() => {
@@ -660,18 +670,60 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 {item.label}
               </button>
             ))}
-            <button
-              onClick={() => navigate('/sources')}
-              style={{
-                padding: '7px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
-                fontSize: 12.5, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5,
-                background: 'transparent', color: 'var(--ink-3)', transition: 'all 150ms',
-              }}
-              title="Configure log source monitors"
-            >
-              <ServerCog style={{ width: 13, height: 13 }} />
-              Log Sources
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setAdminOpen((o) => !o)}
+                style={{
+                  padding: '7px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: adminOpen ? 800 : 500, display: 'flex', alignItems: 'center', gap: 5,
+                  background: adminOpen ? 'var(--bg)' : 'transparent', color: 'var(--ink-3)', transition: 'all 150ms',
+                }}
+                title="Admin tools"
+                aria-haspopup="menu"
+                aria-expanded={adminOpen}
+              >
+                <ShieldCheck style={{ width: 13, height: 13 }} />
+                Admin
+                <ChevronDown style={{ width: 12, height: 12, transform: adminOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />
+              </button>
+              {adminOpen && (
+                <>
+                  {/* click-away backdrop */}
+                  <div
+                    onClick={() => setAdminOpen(false)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+                  />
+                  <div
+                    role="menu"
+                    style={{
+                      position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 70,
+                      minWidth: 180, padding: 6, display: 'flex', flexDirection: 'column', gap: 2,
+                      background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12,
+                      boxShadow: '0 12px 32px rgba(0,0,0,.25)',
+                    }}
+                  >
+                    <button
+                      role="menuitem"
+                      onClick={() => { setAdminOpen(false); navigate('/analytics'); }}
+                      style={adminItemStyle}
+                      title="Incident trends and cost reporting"
+                    >
+                      <BarChart3 style={{ width: 14, height: 14 }} />
+                      Analytics
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => { setAdminOpen(false); navigate('/sources'); }}
+                      style={adminItemStyle}
+                      title="Configure log source monitors"
+                    >
+                      <ServerCog style={{ width: 14, height: 14 }} />
+                      Log Sources
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             {runId && (
               <button
                 onClick={() => navigate(`/run/${runId}`)}

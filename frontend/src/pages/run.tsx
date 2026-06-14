@@ -341,14 +341,14 @@ export function RunPage() {
             <div className="card" id="section-report">
               <div className="card-head" style={{ borderBottom: '1px solid var(--line)', paddingBottom: 12, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={16} style={{ color: 'var(--primary-accent)' }} />
-                    <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto' }}>
+                    <Sparkles size={16} style={{ color: 'var(--primary-accent)', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
                       <div className="card-title">Incident Postmortem Report</div>
                       <div className="card-sub">Generated automatically by compiled agents</div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button
                       type="button"
                       onClick={printReport}

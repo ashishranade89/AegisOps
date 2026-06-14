@@ -1,9 +1,5 @@
 const API_BASE = '/api/incident'
 
-function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  return { ...extra }
-}
-
 export interface StartIncidentResponse {
   run_id: string
   status: string

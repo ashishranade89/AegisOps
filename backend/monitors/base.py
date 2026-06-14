@@ -1,6 +1,7 @@
 """Abstract base monitor + shared severity classification and pipeline trigger."""
 import logging
 import re
+import time
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
@@ -10,6 +11,8 @@ _WARNING_RE  = re.compile(r"\b(WARN(?:ING)?)\b", re.IGNORECASE)
 
 # Trigger the pipeline when this many warnings accumulate in a single scan
 WARNING_BATCH_THRESHOLD = 3
+
+_TRIGGER_COOLDOWN_SECS = 300  # 5 minutes
 
 
 def classify(lines: list[str]) -> tuple[list[str], list[str]]:
@@ -28,6 +31,7 @@ class BaseMonitor(ABC):
         self.config = config
         self.mon_id: str = config["id"]
         self.name: str = config["name"]
+        self._last_triggered_at: float = 0.0
 
     @abstractmethod
     async def run(self) -> None:
@@ -53,6 +57,17 @@ class BaseMonitor(ABC):
                              self.name, len(warn), WARNING_BATCH_THRESHOLD)
             return
 
+        # Cooldown: skip if we triggered less than _TRIGGER_COOLDOWN_SECS ago
+        now = time.monotonic()
+        elapsed = now - self._last_triggered_at
+        if elapsed < _TRIGGER_COOLDOWN_SECS:
+            logger.info(
+                "[%s] Trigger suppressed — cooldown active (%.0fs remaining)",
+                self.name, _TRIGGER_COOLDOWN_SECS - elapsed,
+            )
+            return
+
+        self._last_triggered_at = now
         auto_remediate = bool(self.config.get("auto_remediate", False))
         from backend.monitors.trigger import trigger_incident
         try:

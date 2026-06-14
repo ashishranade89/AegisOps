@@ -64,7 +64,7 @@ async def stop_all() -> None:
     for mid, task in list(_tasks.items()):
         task.cancel()
         try:
-            await asyncio.wait_for(asyncio.shield(task), timeout=5)
+            await asyncio.wait_for(task, timeout=5)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             pass
     _tasks.clear()
@@ -84,7 +84,7 @@ async def remove(mid: str) -> None:
     if task and not task.done():
         task.cancel()
         try:
-            await asyncio.wait_for(asyncio.shield(task), timeout=5)
+            await asyncio.wait_for(task, timeout=5)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             pass
 

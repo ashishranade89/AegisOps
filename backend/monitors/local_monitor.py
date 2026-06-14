@@ -20,6 +20,13 @@ class LocalMonitor(BaseMonitor):
         while True:
             try:
                 if path.exists():
+                    current_size = path.stat().st_size
+                    if current_size < offset:
+                        # Log was rotated or truncated — reset to beginning
+                        logger.info("[%s] Log rotation detected, resetting offset", self.name)
+                        offset = 0
+                        update_offset(self.mon_id, 0)
+
                     with path.open("rb") as fh:
                         fh.seek(offset)
                         chunk = fh.read()

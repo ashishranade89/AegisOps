@@ -84,7 +84,7 @@ class SyslogMonitor(BaseMonitor):
         flush_interval: int = int(self.config.get("scan_interval") or 30)
 
         queue: asyncio.Queue[str] = asyncio.Queue()
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if mon_type == "syslog_udp":
             transport, _ = await loop.create_datagram_endpoint(

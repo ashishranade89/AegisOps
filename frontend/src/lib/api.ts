@@ -23,6 +23,15 @@ export interface HealthResponse {
   server_instance_id: string
 }
 
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = { ...extra }
+  const apiKey = localStorage.getItem('incident_api_key')
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`
+  }
+  return headers
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   const res = await fetch('/health')
   if (!res.ok) throw new Error(await res.text())
@@ -123,6 +132,59 @@ export async function stopIncident(runId: string): Promise<{ run_id: string; sta
   const res = await fetch(`${API_BASE}/${runId}/stop`, {
     method: 'POST',
   })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ─── Analytics ──────────────────────────────────────────────────────────────
+
+export interface VendorFrequency {
+  vendor: string
+  count: number
+  failures: number
+  failure_rate: number
+}
+
+export interface VendorMttr {
+  vendor: string
+  mean_seconds: number
+  median_seconds: number
+  count: number
+}
+
+export interface TrendsResponse {
+  total_runs: number
+  vendor_frequency: VendorFrequency[]
+  mttr_by_vendor: VendorMttr[]
+  time_of_day: number[]
+  overall_mttr_seconds: { mean: number; median: number; std: number }
+}
+
+export interface AgentCost {
+  agent: string
+  cost_usd: number
+  input_tokens: number
+  output_tokens: number
+}
+
+export interface CostReportResponse {
+  window_days: number
+  total_cost_usd: number
+  run_count: number
+  avg_cost_per_run: number
+  most_expensive_agent: string | null
+  by_agent: AgentCost[]
+  cost_over_time: Array<{ date: string; cost_usd: number }>
+}
+
+export async function getAnalyticsTrends(): Promise<TrendsResponse> {
+  const res = await fetch('/api/analytics/trends', { headers: authHeaders() })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getAnalyticsCost(windowDays = 30): Promise<CostReportResponse> {
+  const res = await fetch(`/api/analytics/cost?window_days=${windowDays}`, { headers: authHeaders() })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }

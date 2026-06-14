@@ -26,4 +26,6 @@ dependencies = [
     "pytest-asyncio>=1.4.0",
     "asyncssh>=2.14.0",
     "cryptography>=42.0.0",
+    "pandas>=2.2",
+    "numpy>=2.0",
 ]

@@ -21,7 +21,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 from sse_starlette.sse import EventSourceResponse
 
 from backend.api.auth import require_api_auth
-from backend.api.persistence import init_runs_db, persist_run
+from backend.api.persistence import init_runs_db, persist_run, record_run_analytics
 from backend.api.secrets import resolve_llm_credentials
 from backend.api.streaming import create_run, event_generator, get_run, send_sse_event
 from backend.models.incident_state import ApprovalDecision
@@ -244,6 +244,7 @@ async def run_graph_task(
         state.status = "completed"
         state.current_phase = "completed"
         persist_run(state)
+        record_run_analytics(run_id, result, status="completed")
 
         await send_sse_event(run_id, "phase_change", {"phase": "completed"})
         await send_sse_event(run_id, "report", {"content": state.report})
@@ -254,6 +255,16 @@ async def run_graph_task(
         logger.exception("Run graph task failed for run_id=%s", run_id)
         state.status = "failed"
         persist_run(state)
+        try:
+            failed_result = {}
+            try:
+                snap = await compiled_graph.aget_state(config)
+                failed_result = snap.values or {}
+            except Exception:
+                pass
+            record_run_analytics(run_id, failed_result, status="failed")
+        except Exception:
+            logger.warning("Failed to record analytics for failed run_id=%s", run_id)
         await send_sse_event(run_id, "error", {"message": f"Pipeline execution failed: {str(e)}"})
 
 
@@ -605,6 +616,20 @@ async def delete_history_run(run_id: str):
         return {"deleted": run_id}
     finally:
         conn.close()
+
+
+@app.get("/api/analytics/trends", dependencies=[Depends(require_api_auth)])
+async def analytics_trends():
+    """Incident trend analysis: vendor failure frequency, MTTR, time-of-day."""
+    from backend.analytics.aggregations import compute_trends
+    return compute_trends()
+
+
+@app.get("/api/analytics/cost", dependencies=[Depends(require_api_auth)])
+async def analytics_cost(window_days: int = 30):
+    """Cost reporting: per-agent cost totals and daily spend over a window."""
+    from backend.analytics.aggregations import compute_cost_report
+    return compute_cost_report(window_days)
 
 
 @app.get("/api/rag/entries", dependencies=[Depends(require_api_auth)])

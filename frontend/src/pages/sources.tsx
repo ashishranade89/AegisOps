@@ -298,10 +298,10 @@ function MonitorModal({
 
             {/* Toggles */}
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <Toggle label="Enabled" value={form.enabled} onChange={(v) => set('enabled', v)} />
+              <Toggle label="Enabled" value={!!form.enabled} onChange={(v) => set('enabled', v)} />
               <Toggle
                 label="Auto-Remediate"
-                value={form.auto_remediate}
+                value={!!form.auto_remediate}
                 onChange={(v) => set('auto_remediate', v)}
                 hint="Skip human approval gate and auto-execute remediation steps"
                 color="var(--warn)"

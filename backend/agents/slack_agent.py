@@ -135,9 +135,14 @@ async def slack_report_node(state: IncidentState) -> IncidentState:
                 "detail": "update_jira_status → Done"
             })
 
+        parts = []
+        if approval_ts:
+            parts.append("Slack thread posted")
+        if jira_ticket_id:
+            parts.append("Jira updated to Done")
         await send_sse_event(run_id, "agent_end", {
             "agent_name": "Slack Report",
-            "detail": "Slack thread posted and Jira updated to Done"
+            "detail": " and ".join(parts) if parts else "Completed (nothing to post)"
         })
         return state
 

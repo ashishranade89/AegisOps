@@ -192,6 +192,12 @@ async def run_graph_task(
                 "openrouter_api_key": credentials["openrouter_api_key"],
                 "tavily_api_key": credentials["tavily_api_key"],
                 "llm_model": credentials["llm_model"],
+                "jira_base_url_override": credentials.get("jira_base_url") or None,
+                "jira_email_override": credentials.get("jira_email") or None,
+                "jira_api_token_override": credentials.get("jira_api_token") or None,
+                "jira_project_key_override": credentials.get("jira_project_key") or None,
+                "slack_bot_token_override": credentials.get("slack_bot_token") or None,
+                "slack_channel_id_override": credentials.get("slack_channel_id") or None,
                 "agent_costs": {},
                 "total_cost_usd": 0.0,
                 "messages": [],
@@ -263,6 +269,12 @@ async def start_incident(payload: dict):
         raise HTTPException(status_code=400, detail="Missing scenario_type")
 
     credentials = resolve_llm_credentials(payload)
+    credentials["jira_base_url"] = payload.get("jira_base_url") or ""
+    credentials["jira_email"] = payload.get("jira_email") or ""
+    credentials["jira_api_token"] = payload.get("jira_api_token") or ""
+    credentials["jira_project_key"] = payload.get("jira_project_key") or ""
+    credentials["slack_bot_token"] = payload.get("slack_bot_token") or ""
+    credentials["slack_channel_id"] = payload.get("slack_channel_id") or ""
     custom_telemetry = payload.get("custom_telemetry")
     if scenario_type == "custom_telemetry" and not custom_telemetry:
         raise HTTPException(status_code=400, detail="custom_telemetry body is required when scenario_type is 'custom_telemetry'")
@@ -328,6 +340,8 @@ async def resume_incident(run_id: str, payload: dict):
                         message_ts=slack_ts,
                         decision=decision,
                         decided_by=judge,
+                        bot_token=cv.get("slack_bot_token_override") or "",
+                        channel_id=cv.get("slack_channel_id_override") or "",
                     )
                 if jira_ticket_id:
                     jira_status = "In Progress" if decision == "approved" else "Closed"
@@ -797,13 +811,17 @@ async def slack_action(request: Request):
     user_name = payload.get("user", {}).get("name", "Slack User")
 
     # Immediately update the Slack message to prevent double-clicks
+    # Also capture LLM credentials stored in graph state so resume works
+    # even when OPENROUTER_API_KEY is not set in server .env
+    graph_vals: dict = {}
     try:
         from backend.graph.incident_graph import get_compiled_graph
         compiled = get_compiled_graph()
         cfg = {"configurable": {"thread_id": run_id}}
         current = await compiled.aget_state(cfg)
-        slack_ts = (current.values or {}).get("slack_approval_ts") if current else None
-        jira_ticket_id = (current.values or {}).get("jira_ticket_id") if current else None
+        graph_vals = (current.values or {}) if current else {}
+        slack_ts = graph_vals.get("slack_approval_ts")
+        jira_ticket_id = graph_vals.get("jira_ticket_id")
     except Exception:
         slack_ts = None
         jira_ticket_id = None
@@ -839,7 +857,13 @@ async def slack_action(request: Request):
     run_state.status = "resuming"
     persist_run(run_state)
 
-    credentials = resolve_llm_credentials({})  # uses server-side config
+    # Use LLM credentials from graph state so Slack-triggered resumes work
+    # without requiring OPENROUTER_API_KEY to be set in server .env
+    credentials = resolve_llm_credentials({
+        "openrouter_api_key": graph_vals.get("openrouter_api_key") or "",
+        "llm_model": graph_vals.get("llm_model") or "",
+        "tavily_api_key": graph_vals.get("tavily_api_key") or "",
+    })
     task = asyncio.create_task(
         run_graph_task(
             run_id,

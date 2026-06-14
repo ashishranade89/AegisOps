@@ -70,6 +70,15 @@ def _build_approval_blocks(
     return blocks
 
 
+def _effective_slack_creds(bot_token: str = "", channel_id: str = "") -> tuple[str, str]:
+    """Returns (bot_token, channel_id) — per-request values override env config."""
+    config = get_config()
+    return (
+        bot_token.strip() or config.slack_bot_token,
+        channel_id.strip() or config.slack_channel_id,
+    )
+
+
 def post_approval_message(
     run_id: str,
     root_cause: str,
@@ -77,16 +86,20 @@ def post_approval_message(
     suspected_vendor: str,
     remediation_steps: list,
     jira_url: str | None,
+    bot_token: str = "",
+    channel_id: str = "",
 ) -> str:
     """
     Posts a Block Kit approval message to the configured Slack channel.
     Returns JSON with message_ts (needed for threading and updates).
     Skips silently if Slack Bot is not configured.
+    bot_token / channel_id override env-var config when provided.
     """
     config = get_config()
+    effective_token, effective_channel = _effective_slack_creds(bot_token, channel_id)
 
-    if not config.slack_bot_configured():
-        logger.warning("Slack Bot not configured — skipping approval message")
+    if not (effective_token and effective_channel):
+        logger.error("Slack Bot not configured — SLACK_BOT_TOKEN and SLACK_CHANNEL_ID must be set in .env")
         return json.dumps({"skipped": True, "reason": "Slack Bot not configured"})
 
     if config.slack_dry_run:
@@ -100,11 +113,11 @@ def post_approval_message(
         resp = httpx.post(
             f"{_SLACK_API}/chat.postMessage",
             json={
-                "channel": config.slack_channel_id,
+                "channel": effective_channel,
                 "text": f"Incident approval required: {suspected_vendor} ({severity})",
                 "blocks": blocks,
             },
-            headers=_headers(config.slack_bot_token),
+            headers=_headers(effective_token),
             timeout=10.0,
         )
         resp.raise_for_status()
@@ -123,14 +136,18 @@ def update_approval_message(
     message_ts: str,
     decision: str,
     decided_by: str,
+    bot_token: str = "",
+    channel_id: str = "",
 ) -> str:
     """
     Replaces the approval buttons with the decision result.
     decision: 'approved' or 'rejected'
+    bot_token / channel_id override env-var config when provided.
     """
     config = get_config()
+    effective_token, effective_channel = _effective_slack_creds(bot_token, channel_id)
 
-    if not config.slack_bot_configured():
+    if not (effective_token and effective_channel):
         return json.dumps({"skipped": True})
 
     if config.slack_dry_run:
@@ -153,12 +170,12 @@ def update_approval_message(
         resp = httpx.post(
             f"{_SLACK_API}/chat.update",
             json={
-                "channel": config.slack_channel_id,
+                "channel": effective_channel,
                 "ts": message_ts,
                 "blocks": blocks,
                 "text": f"{label} by {decided_by}",
             },
-            headers=_headers(config.slack_bot_token),
+            headers=_headers(effective_token),
             timeout=10.0,
         )
         resp.raise_for_status()
@@ -176,13 +193,17 @@ def post_report_thread(
     approval_ts: str,
     final_report: str,
     jira_ticket_id: str | None,
+    bot_token: str = "",
+    channel_id: str = "",
 ) -> str:
     """
     Posts the final report as a threaded reply to the approval message.
+    bot_token / channel_id override env-var config when provided.
     """
     config = get_config()
+    effective_token, effective_channel = _effective_slack_creds(bot_token, channel_id)
 
-    if not config.slack_bot_configured():
+    if not (effective_token and effective_channel):
         return json.dumps({"skipped": True})
 
     if config.slack_dry_run:
@@ -206,12 +227,12 @@ def post_report_thread(
         resp = httpx.post(
             f"{_SLACK_API}/chat.postMessage",
             json={
-                "channel": config.slack_channel_id,
+                "channel": effective_channel,
                 "thread_ts": approval_ts,
                 "text": "Final incident report",
                 "blocks": blocks,
             },
-            headers=_headers(config.slack_bot_token),
+            headers=_headers(effective_token),
             timeout=10.0,
         )
         resp.raise_for_status()

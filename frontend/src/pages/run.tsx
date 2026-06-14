@@ -183,6 +183,12 @@ export function RunPage() {
               <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)', background: 'var(--surface)', padding: '3px 7px', borderRadius: 4, border: '1px solid var(--line)' }}>
                 {runId}
               </div>
+              {report && (
+                <button type="button" className="text-btn" onClick={downloadReport} title="Download report as Markdown">
+                  <Download size={12} />
+                  Download .md
+                </button>
+              )}
               {totalCostUsd > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, color: 'var(--positive)', background: 'var(--positive-tint)', padding: '3px 7px', borderRadius: 4, border: '1px solid var(--positive)' }}>
                   <DollarSign size={10} />
@@ -316,7 +322,7 @@ export function RunPage() {
                     <div className="card-sub">Interactive Mind Map and Root Cause Hypotheses</div>
                   </div>
                 </div>
-                <button type="button" className="icon-btn" style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}>
+                <button type="button" className="text-btn" style={{ marginRight: 6 }}>
                   {showVisuals ? 'Hide Diagrams' : 'Show Diagrams'}
                 </button>
               </div>
@@ -352,22 +358,11 @@ export function RunPage() {
                     <button
                       type="button"
                       onClick={printReport}
-                      className="icon-btn"
+                      className="text-btn"
                       title="Export as PDF"
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, padding: '5px 10px', borderRadius: 6 }}
                     >
                       <Printer size={13} />
                       Export PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={downloadReport}
-                      className="icon-btn"
-                      title="Download as Markdown"
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, padding: '5px 10px', borderRadius: 6 }}
-                    >
-                      <Download size={13} />
-                      .md
                     </button>
                   </div>
                 </div>

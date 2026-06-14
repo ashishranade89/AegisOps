@@ -291,6 +291,8 @@ Before going to production, verify these settings:
 - **RAG-Accelerated RCA**: Instant root cause analysis for recurring issues using historical incident memory (ChromaDB + JSON fallback).
 - **Multi-Source Verification**: Simultaneous status page scraping (Playwright/Stagehand) and social media search (Tavily/DuckDuckGo).
 - **Human-in-the-Loop**: Built-in approval gate before any remediation action executes.
+- **Auto-Remediate Policy**: Per-source toggle that bypasses the human approval gate and auto-executes remediation — configurable per log source in the Log Sources UI.
+- **Continuous Log Monitoring**: Poll remote servers (SSH/SFTP), local files, or receive pushed syslog messages (UDP/TCP) and automatically open investigations when critical or warning-level entries are detected.
 - **Real-time Observability**: 3D topology graph and live agent activity feed via Server-Sent Events (SSE).
 - **Cost Tracking**: Per-agent token usage and USD cost reported live in the UI.
 - **Persistent Memory**: SQLite checkpoints allow paused runs to survive server restarts.
@@ -333,6 +335,15 @@ vendor_outage_investigator/
 │   │   └── incident_rag.py  # ChromaDB + JSON RAG implementation
 │   ├── models/
 │   │   └── incident_state.py  # IncidentState TypedDict + Pydantic models
+│   ├── monitors/               # Log source monitoring subsystem
+│   │   ├── base.py             # Abstract BaseMonitor + severity classifier
+│   │   ├── encryption.py       # Fernet credential encryption (data/monitor.key)
+│   │   ├── local_monitor.py    # Local file polling by byte offset
+│   │   ├── manager.py          # Orchestrates monitor asyncio tasks (lifespan)
+│   │   ├── persistence.py      # monitors table CRUD (runs.db)
+│   │   ├── ssh_monitor.py      # Remote file polling via SSH/SFTP (asyncssh)
+│   │   ├── syslog_monitor.py   # UDP/TCP syslog push receiver
+│   │   └── trigger.py          # Internal HTTP trigger for the incident pipeline
 │   ├── simulators/
 │   │   └── payment_outage.py  # Built-in test scenarios (Stripe, AWS, Twilio, etc.)
 │   ├── tools/
@@ -347,13 +358,17 @@ vendor_outage_investigator/
 ├── frontend/
 │   └── src/
 │       ├── components/         # React UI components (AgentFeed, ApprovalCard, TopologyGraph, etc.)
-│       ├── pages/              # home.tsx (landing), run.tsx (live investigation)
+│       ├── pages/              # home.tsx (landing), run.tsx (investigation), sources.tsx (log sources)
 │       ├── stores/             # Zustand state store
 │       ├── hooks/              # use-sse.ts — SSE connection hook
-│       └── lib/api.ts          # Typed API client
-├── data/                       # SQLite databases (git-ignored)
+│       └── lib/api.ts          # Typed API client (includes monitor CRUD functions)
+├── data/                       # SQLite databases + monitor encryption key (git-ignored)
 ├── incident_memory_db/         # JSON RAG knowledge base files
-├── docs/                       # Architecture, API, and operations documentation
+├── LogGenerator/               # Synthetic log daemon for local development/demos
+│   ├── daemon.py               # Background daemon — writes to logs/incident.log
+│   ├── settings.cfg            # Interval and source-file configuration
+│   ├── Incidents-*.log         # Curated source lines (info / warnings / critical)
+│   └── README.md               # Setup and usage guide
 ├── tests/                      # pytest test suite
 ├── Dockerfile
 ├── setup.sh / setup.ps1   # First-time setup (installs deps, checks ports)

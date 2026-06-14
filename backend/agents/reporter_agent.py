@@ -78,11 +78,25 @@ async def reporter_node(state: IncidentState) -> IncidentState:
         cost_info = cost_tracker.record(run_id, "Incident Reporter", response, state.get("llm_model"))
         await send_sse_event(run_id, "cost_update", cost_info)
 
+        # Append compact cost line to the postmortem
+        cost_summary = cost_tracker.get_summary(run_id)
+        model_name = state.get("llm_model") or "unknown"
+        parts = [
+            f"{agent} {u['input_tokens']:,}↑{u['output_tokens']:,}↓ ${u['cost_usd']:.4f}"
+            for agent, u in cost_summary["agents"].items()
+        ]
+        cost_section = (
+            f"\n\n---\n\n**Cost & Token Usage** *(model: {model_name})*: "
+            + " · ".join(parts)
+            + f" · **Total ${cost_summary['total_usd']:.4f}**"
+        )
+        report = report + cost_section
+
         await send_sse_event(run_id, "agent_end", {
             "agent_name": "Incident Reporter",
             "detail": "Final postmortem report, dispatch payload, and ticket generated."
         })
-        
+
         return {
             **state,
             "final_report": report,

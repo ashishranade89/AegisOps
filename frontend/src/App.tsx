@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes, Link, useLocation } from 'react-router-dom'
 import { HomePage } from '@/pages/home'
 import { RunPage } from '@/pages/run'
+import { SourcesPage } from '@/pages/sources'
 import { useIncidentStore } from '@/stores/incident-store'
 import {
   Play,
@@ -9,8 +10,10 @@ import {
   Moon,
   Sun,
   PanelRight,
+  Shield,
   ShieldCheck,
   BookOpen,
+  ServerCog,
 } from 'lucide-react'
 
 function Sidebar() {
@@ -20,6 +23,7 @@ function Sidebar() {
   const navItems: { path: string; label: string; icon: typeof Play }[] = [
     { path: '/', label: 'Trigger Simulation', icon: Play },
     { path: '/history', label: 'History & Knowledge', icon: BookOpen },
+    { path: '/sources', label: 'Log Sources', icon: ServerCog },
   ]
 
   if (runId) {
@@ -32,13 +36,15 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark" style={{ background: 'var(--primary-accent)', color: '#fff' }}>A</div>
+      <Link to="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #2563EB, #F43F5E)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Shield size={16} color="#fff" />
+        </div>
         <div>
           <div className="brand-name">AegisOps</div>
-          <div className="brand-sub">Outage Investigator</div>
+          <div className="brand-sub">Autonomous Incident Orchestrator</div>
         </div>
-      </div>
+      </Link>
 
       <div className="nav-section-label">Observatory</div>
       {navItems.map((item) => {
@@ -94,6 +100,9 @@ function Layout({ children }: { children: React.ReactNode }) {
     }
     if (location.pathname === '/history') {
       return { crumb: 'Incident Room', title: 'History & Knowledge Base' }
+    }
+    if (location.pathname === '/sources') {
+      return { crumb: 'Configuration', title: 'Log Sources' }
     }
     return { crumb: 'Incident Room', title: 'Dashboard' }
   }
@@ -152,6 +161,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/run/:runId" element={<RunPage />} />
           <Route path="/history" element={<HomePage defaultTab="history" />} />
+          <Route path="/sources" element={<SourcesPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>

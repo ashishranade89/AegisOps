@@ -53,43 +53,55 @@ On Windows, `.\start.ps1` performs the same listener cleanup before launch and f
 
 ## Architecture
 
+Two ingestion paths feed the same multi-agent pipeline:
+
 ```
-User uploads telemetry (logs + metrics)
-         │
-         ▼
-┌─────────────────┐
-│  Triage Agent   │  Classifies severity, identifies vendor
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  RAG Cache      │  Searches historical incident memory (ChromaDB / JSON)
-└────────┬────────┘
-    confidence ≥ 0.85 → skip to Remediation
-         │
-         ▼
-┌─────────────────┐
-│  RCA Agent      │  Routes: needs browser? web search? human escalation?
-└──┬───────┬──────┘
-   │       │
-   ▼       ▼
-Browser  Web Search   (fall back to mock data if Stagehand / Tavily unavailable)
-   └───────┘
-         │
-         ▼
-┌─────────────────┐
-│ Remediation     │  Generates containment action plan + Slack alert
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Reporter Agent  │  Writes full Markdown postmortem
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ RAG Storage     │  Saves resolved incident to vector memory for future runs
-└─────────────────┘
+Manual path                     Automated path
+──────────────────────          ──────────────────────────────────────────
+User uploads telemetry    OR    Log Source Monitor (SSH / Syslog / Local)
+(logs + metrics)                polls server logs continuously
+         │                                    │
+         └──────────────────┬─────────────────┘
+                            ▼
+                   POST /api/incident
+                            │
+                            ▼
+              ┌─────────────────────────┐
+              │      Triage Agent       │  Classifies severity, identifies vendor
+              └──────────┬──────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │       RAG Cache         │  Searches historical incident memory
+              └──────────┬──────────────┘
+                 confidence ≥ 0.85 → skip to Remediation
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │       RCA Agent         │  Routes: browser? web search? escalate?
+              └──┬───────────┬──────────┘
+                 │           │
+                 ▼           ▼
+            Browser     Web Search   (mock fallback if unavailable)
+                 └─────┬─────┘
+                       │
+                       ▼
+              ┌─────────────────────────┐
+              │     Remediation         │  Containment plan + Slack alert
+              │  ┌───────────────────┐  │
+              │  │ Human approval?   │  │  ← skipped if Auto-Remediate enabled
+              │  └───────────────────┘  │
+              └──────────┬──────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │    Reporter Agent       │  Full Markdown postmortem
+              └──────────┬──────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │     RAG Storage         │  Saves to vector memory for future runs
+              └─────────────────────────┘
 
 Self-Heal Agent intercepts failures at any node and reroutes automatically.
 ```
@@ -126,7 +138,24 @@ docker build -t aegisops .
 docker run -p 8004:8004 --env-file .env -v $(pwd)/data:/app/data aegisops
 ```
 
-Run tests: `uv run pytest tests/ -q`
+## Running tests
+
+Run the full test suite before pushing any changes:
+
+```bash
+uv run pytest tests/ -v
+```
+
+| Test file | What it covers |
+|---|---|
+| `tests/test_api.py` | API health, auth, incident lifecycle, monitor CRUD endpoints |
+| `tests/test_cost_tracker.py` | Token accumulation, USD cost calculation, multi-agent/multi-run isolation |
+| `tests/test_monitor_classify.py` | Severity keyword detection, warning threshold logic, case-insensitivity |
+| `tests/test_production.py` | Pydantic model validation, LLM credential resolution |
+
+All 39 tests must pass before opening a pull request. The suite runs in under 2 seconds with no external services required.
+
+---
 
 **Continuing development in a new AI chat?** Read [`docs/CLAUDE_HANDOFF.md`](docs/CLAUDE_HANDOFF.md) first.
 

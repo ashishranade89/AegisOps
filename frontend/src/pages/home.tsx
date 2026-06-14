@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Shield, ArrowRight,
   Sun, Moon,
-  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, X, AlertCircle
+  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, ServerCog, X, AlertCircle
 } from "lucide-react";
 import { NetworkParticles } from "@/components/vigilant/NetworkParticles";
 import { AIGlobeHero } from "@/components/vigilant/AIGlobeHero";
@@ -621,7 +621,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
           {/* Logo */}
-          <div className="flex items-center gap-2.5 flex-shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setView('landing')}>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-rose-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Shield className="w-4 h-4 text-white" />
             </div>
@@ -629,7 +629,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               <h1 style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-.02em', color: 'var(--ink)', margin: 0, lineHeight: 1.2 }}>AegisOps</h1>
               <span style={{ fontSize: 10, color: 'var(--ink-4)', display: 'block', fontFamily: 'monospace' }}>Autonomous Incident Orchestrator</span>
             </div>
-          </div>
+          </Link>
 
           {/* Segmented Nav */}
           <div style={{
@@ -642,7 +642,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               { label: 'Agent Swarm',    action: () => { setView('app'); setActiveAppTab('sandbox'); },                active: view === 'app' && activeAppTab === 'sandbox', id: 'view-sandbox-dashboard-btn' },
               { label: 'Investigations', action: () => { setView('app'); setActiveAppTab('history'); setHistoryTab('runs'); }, active: view === 'app' && activeAppTab === 'history' && historyTab === 'runs' },
               { label: 'Knowledge Base', action: () => { setView('app'); setActiveAppTab('history'); setHistoryTab('rag'); },  active: view === 'app' && activeAppTab === 'history' && historyTab === 'rag' },
-            ] as const).map((item) => (
+            ] as {label:string; action:()=>void; active:boolean; id?:string}[]).map((item) => (
               <button
                 key={item.label}
                 id={(item as any).id}
@@ -660,6 +660,18 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                 {item.label}
               </button>
             ))}
+            <button
+              onClick={() => navigate('/sources')}
+              style={{
+                padding: '7px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                fontSize: 12.5, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5,
+                background: 'transparent', color: 'var(--ink-3)', transition: 'all 150ms',
+              }}
+              title="Configure log source monitors"
+            >
+              <ServerCog style={{ width: 13, height: 13 }} />
+              Log Sources
+            </button>
             {runId && (
               <button
                 onClick={() => navigate(`/run/${runId}`)}
@@ -1049,6 +1061,15 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
                             style={{ fontSize: 11, color: 'var(--primary-accent)', fontWeight: 600, textDecoration: 'none', marginRight: 8 }}
                           >
                             View Live →
+                          </Link>
+                        )}
+                        {run.status === 'paused' && (
+                          <Link
+                            to={`/run/${run.run_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: 11, color: 'var(--warn)', fontWeight: 600, textDecoration: 'none', marginRight: 8 }}
+                          >
+                            Review & Approve →
                           </Link>
                         )}
                         <button

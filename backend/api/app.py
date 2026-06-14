@@ -25,6 +25,16 @@ from backend.api.persistence import init_runs_db, persist_run
 from backend.api.secrets import resolve_llm_credentials
 from backend.api.streaming import create_run, event_generator, get_run, send_sse_event
 from backend.models.incident_state import ApprovalDecision
+from backend.monitors import manager as monitor_manager
+from backend.monitors.encryption import encrypt, decrypt
+from backend.monitors.persistence import (
+    init_monitors_db,
+    create_monitor,
+    list_monitors,
+    get_monitor,
+    update_monitor,
+    delete_monitor,
+)
 from backend.simulators.payment_outage import list_payment_scenarios
 from backend.utils.config import get_config
 
@@ -82,6 +92,7 @@ async def lifespan(app: FastAPI):
     global _checkpointer
     load_dotenv()
     init_runs_db()
+    init_monitors_db()
 
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     from backend.graph.incident_graph import init_incident_graph
@@ -91,8 +102,10 @@ async def lifespan(app: FastAPI):
         await checkpointer.setup()
         _checkpointer = checkpointer
         init_incident_graph(checkpointer)
+        await monitor_manager.start_all()
         logger.info("Outage Investigator API starting up (checkpoint=%s)", db_path)
         yield
+        await monitor_manager.stop_all()
 
     _checkpointer = None
     logger.info("Outage Investigator API shutting down")
@@ -149,10 +162,12 @@ async def run_graph_task(
             if custom_telemetry:
                 raw_logs = custom_telemetry.get("raw_logs", [])
                 raw_metrics = custom_telemetry.get("raw_metrics", {})
+                auto_remediate = bool(custom_telemetry.get("auto_remediate", False))
             else:
                 payload_data = generate_payment_scenario(scenario_type)
                 raw_logs = payload_data["raw_logs"]
                 raw_metrics = payload_data["raw_metrics"]
+                auto_remediate = False
 
             initial_state = {
                 "incident_id": run_id,
@@ -185,27 +200,39 @@ async def run_graph_task(
 
         current_state = await compiled_graph.aget_state(config)
         if current_state.next:
-            # Emit a rich context event so the UI can show a non-expert summary
             vals = current_state.values or {}
-            await send_sse_event(run_id, "approval_context", {
-                "root_cause": vals.get("root_cause"),
-                "suspected_vendor": vals.get("suspected_vendor"),
-                "severity": vals.get("severity"),
-                "internal_findings": vals.get("internal_findings"),
-                "hypotheses": vals.get("hypotheses") or [],
-                "browser_result": vals.get("browser_result"),
-                "web_search_result": vals.get("web_search_result"),
-            })
-            # Send Slack approval message and store ts in graph state for later threading
-            slack_ts = await send_slack_approval(vals, run_id)
-            if slack_ts:
-                await compiled_graph.aupdate_state(config, {"slack_approval_ts": slack_ts})
-            state.status = "paused"
-            state.current_phase = "paused_for_approval"
-            persist_run(state)
-            await send_sse_event(run_id, "phase_change", {"phase": "paused_for_approval"})
-            logger.info("LangGraph pipeline paused for approval: run_id=%s", run_id)
-            return
+            if auto_remediate:
+                # Monitor policy: skip human gate and auto-approve remediation
+                logger.info("Auto-remediating run_id=%s (monitor policy)", run_id)
+                auto_approval = ApprovalDecision(
+                    status="approved",
+                    judge_name="System (Auto-Remediate Policy)",
+                    comments="Automatically approved by log-source monitor policy.",
+                )
+                await compiled_graph.aupdate_state(config, {"approval": auto_approval.model_dump()})
+                result = await compiled_graph.ainvoke(None, config=config)
+                # Fall through to completion handling below
+            else:
+                # Normal path: pause and wait for human approval
+                await send_sse_event(run_id, "approval_context", {
+                    "root_cause": vals.get("root_cause"),
+                    "suspected_vendor": vals.get("suspected_vendor"),
+                    "severity": vals.get("severity"),
+                    "internal_findings": vals.get("internal_findings"),
+                    "hypotheses": vals.get("hypotheses") or [],
+                    "browser_result": vals.get("browser_result"),
+                    "web_search_result": vals.get("web_search_result"),
+                })
+                # Send Slack approval message and store ts in graph state for later threading
+                slack_ts = await send_slack_approval(vals, run_id)
+                if slack_ts:
+                    await compiled_graph.aupdate_state(config, {"slack_approval_ts": slack_ts})
+                state.status = "paused"
+                state.current_phase = "paused_for_approval"
+                persist_run(state)
+                await send_sse_event(run_id, "phase_change", {"phase": "paused_for_approval"})
+                logger.info("LangGraph pipeline paused for approval: run_id=%s", run_id)
+                return
 
         state.report = result.get("final_report") or "No final report generated."
         state.status = "completed"
@@ -633,6 +660,96 @@ async def clear_rag():
         except Exception:
             pass
     return {"cleared_count": cleared}
+
+
+# ─── Monitor Management ───────────────────────────────────────────────────────
+#
+# Accepted monitor types:
+#   "local"       — poll a local log file by byte offset
+#   "ssh"         — poll a remote file via SSH/SFTP
+#   "syslog_udp"  — listen for UDP syslog push messages
+#   "syslog_tcp"  — listen for TCP syslog push messages
+#
+# POST body for create/update:
+#   { name, type, host?, port?, log_path?, scan_interval?,
+#     credentials?: { username, password?, private_key?, passphrase? },
+#     enabled? }
+#
+# Credentials are Fernet-encrypted before storage and never returned in responses.
+
+
+def _sanitize(m: dict) -> dict:
+    """Strip the encrypted credential blob from API responses."""
+    out = {k: v for k, v in m.items() if k != "credentials_enc"}
+    out["has_credentials"] = bool(m.get("credentials_enc"))
+    return out
+
+
+@app.get("/api/monitors", dependencies=[Depends(require_api_auth)])
+async def list_monitors_route():
+    return [_sanitize(m) for m in list_monitors()]
+
+
+@app.post("/api/monitors", dependencies=[Depends(require_api_auth)])
+async def create_monitor_route(payload: dict):
+    try:
+        creds = payload.pop("credentials", None)
+        if creds:
+            payload["credentials_enc"] = encrypt(creds)
+        monitor = create_monitor(payload)
+        if monitor["enabled"]:
+            await monitor_manager.add(monitor["id"])
+        return _sanitize(monitor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/monitors/{mid}", dependencies=[Depends(require_api_auth)])
+async def get_monitor_route(mid: str):
+    m = get_monitor(mid)
+    if not m:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return _sanitize(m)
+
+
+@app.put("/api/monitors/{mid}", dependencies=[Depends(require_api_auth)])
+async def update_monitor_route(mid: str, payload: dict):
+    existing = get_monitor(mid)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    creds = payload.pop("credentials", None)
+    if creds:
+        payload["credentials_enc"] = encrypt(creds)
+    was_enabled = existing["enabled"]
+    m = update_monitor(mid, payload)
+    # Restart the task if the monitor is active so changes take effect
+    if m["enabled"]:
+        await monitor_manager.remove(mid)
+        await monitor_manager.add(mid)
+    elif was_enabled:
+        await monitor_manager.remove(mid)
+    return _sanitize(m)
+
+
+@app.delete("/api/monitors/{mid}", dependencies=[Depends(require_api_auth)])
+async def delete_monitor_route(mid: str):
+    if not get_monitor(mid):
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    await monitor_manager.remove(mid)
+    delete_monitor(mid)
+    return {"deleted": mid}
+
+
+@app.post("/api/monitors/{mid}/toggle", dependencies=[Depends(require_api_auth)])
+async def toggle_monitor_route(mid: str, payload: dict):
+    if not get_monitor(mid):
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    enabled = bool(payload.get("enabled", True))
+    await monitor_manager.toggle(mid, enabled)
+    return _sanitize(get_monitor(mid))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @app.post("/api/slack/action")

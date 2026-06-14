@@ -23,7 +23,8 @@ _lock = threading.Lock()
 
 
 def _get_price(model: str | None) -> tuple[float, float]:
-    for key, price in _PRICING.items():
+    # Sort longest key first so "gpt-4o-mini" matches before "gpt-4o"
+    for key, price in sorted(_PRICING.items(), key=lambda kv: len(kv[0]), reverse=True):
         if key in (model or ""):
             return price
     return _DEFAULT_PRICING

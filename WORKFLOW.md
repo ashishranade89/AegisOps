@@ -18,6 +18,7 @@ The system is built on a **Stateful Agent Swarm** architecture using **LangGraph
 -   **Agent Swarm (LangGraph)**: The core intelligence that handles the investigation.
 -   **Frontend (React/Vite)**: A real-time dashboard for monitoring the investigation and approving actions.
 -   **Vector Database (RAG)**: Stores historical incidents to provide "instant-on" root cause analysis for recurring issues.
+-   **Log Source Monitors** (`backend/monitors/`): Background workers that continuously poll remote servers (SSH/SFTP), listen for syslog push (UDP/TCP), or scan local log files. When a critical event is detected, they automatically feed the pipeline via the internal `/api/incident` endpoint — no manual telemetry upload required.
 
 ---
 
@@ -72,7 +73,8 @@ The system is a stateful directed acyclic graph (DAG) where each node represents
 -   **Purpose**: Mitigation planning and execution.
 -   **Input**: Confirmed `root_cause` and investigation findings.
 -   **Logic**:
-    -   **Human-in-the-Loop**: Can pause here for manual approval via the UI.
+    -   **Human-in-the-Loop** (default): The graph pauses here; the UI presents the plan and waits for a human to approve or reject before proceeding.
+    -   **Auto-Remediate** (monitor policy): If the triggering log source has `auto_remediate=true`, the backend injects a pre-approved `ApprovalDecision` via `aupdate_state` and the graph continues without pausing. The approval is attributed to `"System (Auto-Remediate Policy)"` in the run record.
     -   Generates a list of **remediation_steps** and a **containment plan**.
     -   Drafts long-term **recommendations**.
 -   **Tools**: `post_slack_notification` (sends "Remediation Action Planned").
@@ -116,11 +118,44 @@ To help you visualize the flow, here is how the system handles a typical Stripe 
 
 ---
 
+## 🖥️ Monitor-Triggered Pipeline Flow
+
+Log Source Monitors provide a fully automated ingestion path that bypasses
+manual telemetry upload:
+
+```
+Remote Server / Local File
+        │
+        ▼
+  Monitor Worker (SSH / Syslog / Local)
+        │  reads new log lines by byte offset
+        ▼
+  classify(lines)
+        │  CRITICAL lines  ─────────────┐
+        │  ≥ 3 WARNING lines ───────────┤
+        │                               ▼
+        │                    POST /api/incident
+        │                    { raw_logs, source_name,
+        │                      custom_telemetry: { auto_remediate } }
+        │                               │
+        │                               ▼
+        │                         run_graph_task
+        │                               │
+        │                    auto_remediate == true?
+        │                      ├─ Yes → inject ApprovalDecision → continue
+        │                      └─ No  → pause at Remediation → wait for UI approval
+        ▼
+  (offsets updated in runs.db, next poll continues from new position)
+```
+
+---
+
 ## 📊 Data Flow Diagram
 
 ```mermaid
 graph TD
     A[Telemetry Upload] --> B[Triage Agent]
+    M[Log Source Monitor] -->|POST /api/incident| B
     B --> C{RAG Search}
     C -- High Confidence --> G[Remediation Agent]
     C -- Low Confidence --> D[RCA Agent]
@@ -128,7 +163,9 @@ graph TD
     D --> F[Web Search Agent]
     E --> G
     F --> G
-    G --> H[Reporter Agent]
+    G -- auto_remediate=false --> P{Human Approval}
+    G -- auto_remediate=true --> H[Reporter Agent]
+    P -- approved --> H
     H --> I[RAG Storage]
     
     subgraph "Self-Healing Layer"

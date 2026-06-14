@@ -90,6 +90,8 @@ class SSHMonitor(BaseMonitor):
 
                             await asyncio.sleep(interval)
 
+            except asyncio.CancelledError:
+                raise
             except (asyncssh.Error, OSError) as exc:
                 logger.error(
                     "[%s] SSH connection failed: %s — retrying in %ss",

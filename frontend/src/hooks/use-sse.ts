@@ -3,7 +3,7 @@ import type { IncidentPhase, TimelineEvent } from '@/stores/incident-store'
 import { useIncidentStore } from '@/stores/incident-store'
 
 export function useSSE(runId: string | null) {
-  const { addEvent, setPhase, setReport, setStatus, recordCost, setBrowserResult, setApprovalContext } = useIncidentStore()
+  const { addEvent, setPhase, setReport, setStatus, recordCost, setBrowserResult, setApprovalContext, setJiraTicket, setSlackMessage } = useIncidentStore()
 
   useEffect(() => {
     if (!runId) return
@@ -31,6 +31,14 @@ export function useSSE(runId: string | null) {
           setApprovalContext(data as any)
           return // store separately
         }
+        if (type === 'jira_ticket') {
+          setJiraTicket(data.ticket_id as string, data.ticket_url as string)
+          return // store separately, not in the event feed
+        }
+        if (type === 'slack_message') {
+          setSlackMessage(data as any)
+          return // store separately, not in the event feed
+        }
         addEvent({ type, ...data, timestamp: Date.now() } as TimelineEvent)
       } catch (err) {
         console.error("Failed to parse SSE line data:", err)
@@ -49,6 +57,8 @@ export function useSSE(runId: string | null) {
       'cost_update',
       'browser_result',
       'approval_context',
+      'jira_ticket',
+      'slack_message',
     ]
 
     for (const evt of eventNames) {
@@ -71,5 +81,5 @@ export function useSSE(runId: string | null) {
     return () => {
       es.close()
     }
-  }, [runId, addEvent, setPhase, setReport, setStatus, setBrowserResult, setApprovalContext])
+  }, [runId, addEvent, setPhase, setReport, setStatus, setBrowserResult, setApprovalContext, setJiraTicket, setSlackMessage])
 }

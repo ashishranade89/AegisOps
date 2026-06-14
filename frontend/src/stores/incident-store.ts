@@ -35,6 +35,7 @@ export interface AgentCost {
 
 const AGENT_TO_NODE_MAP: Record<string, string> = {
   "Triage Agent": "triage",
+  "Jira Integration": "jira",
   "RAG Cache Lookup": "rag_search",
   "Root Cause Analyzer": "rca",
   "Browser Scraper Agent": "browser",
@@ -42,6 +43,7 @@ const AGENT_TO_NODE_MAP: Record<string, string> = {
   "Self-Heal Agent": "self_heal",
   "Remediation Agent": "remediation",
   "Incident Reporter": "reporter",
+  "Slack Report": "slack_report",
   "RAG Storage Node": "store_incident"
 }
 
@@ -70,6 +72,14 @@ export interface ApprovalContext {
   web_search_result?: object
 }
 
+export interface SlackMessage {
+  status: 'posted' | 'skipped' | 'dry_run' | 'error'
+  channelId?: string
+  messageTs?: string
+  threadUrl?: string
+  reason?: string
+}
+
 interface IncidentStoreState {
   runId: string | null
   scenario: string
@@ -86,6 +96,9 @@ interface IncidentStoreState {
   approvalContext: ApprovalContext | null
   graphNodes: GraphNode[]
   graphLinks: GraphLink[]
+  jiraTicketId: string | null
+  jiraTicketUrl: string | null
+  slackMessage: SlackMessage | null
 
   setRunId: (id: string) => void
   setScenario: (scenario: string) => void
@@ -98,6 +111,8 @@ interface IncidentStoreState {
   setBrowserResult: (result: BrowserResult) => void
   setApprovalContext: (ctx: ApprovalContext) => void
   setGraphData: (nodes: GraphNode[], links: GraphLink[]) => void
+  setJiraTicket: (id: string, url: string) => void
+  setSlackMessage: (msg: SlackMessage) => void
   reset: () => void
 }
 
@@ -117,6 +132,9 @@ const initialState = {
   approvalContext: null as ApprovalContext | null,
   graphNodes: [] as GraphNode[],
   graphLinks: [] as GraphLink[],
+  jiraTicketId: null as string | null,
+  jiraTicketUrl: null as string | null,
+  slackMessage: null as SlackMessage | null,
 }
 
 export const useIncidentStore = create<IncidentStoreState>((set) => ({
@@ -167,5 +185,7 @@ export const useIncidentStore = create<IncidentStoreState>((set) => ({
   setBrowserResult: (browserResult) => set({ browserResult }),
   setApprovalContext: (approvalContext) => set({ approvalContext }),
   setGraphData: (graphNodes, graphLinks) => set({ graphNodes, graphLinks }),
+  setJiraTicket: (jiraTicketId, jiraTicketUrl) => set({ jiraTicketId, jiraTicketUrl }),
+  setSlackMessage: (slackMessage) => set({ slackMessage }),
   reset: () => set(initialState)
 }))

@@ -76,7 +76,12 @@ class IncidentState(TypedDict):
     final_report: str | None
     hypotheses: Optional[List[dict]] # dict representation of Hypothesis
     recommendations: Optional[List[dict]] # dict representation of ActionItem
-    
+
+    # Integrations
+    jira_ticket_url: Optional[str]    # e.g. "https://company.atlassian.net/browse/OPS-42"
+    jira_ticket_id: Optional[str]     # e.g. "OPS-42"
+    slack_approval_ts: Optional[str]  # Slack message ts for threading + updates
+
     # Self-Healing & Exception tracking
     retry_count: int
     last_error: str | None
@@ -98,7 +103,6 @@ class IncidentState(TypedDict):
     openrouter_api_key: str | None
     tavily_api_key: str | None
     llm_model: str | None
-    llm_base_url: str | None
 
     # Live cost tracking — populated by each agent after every LLM call
     agent_costs: dict | None        # {agent_name: {input_tokens, output_tokens, cost_usd}}

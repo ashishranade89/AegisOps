@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Shield, ArrowRight,
   Sun, Moon,
-  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, ServerCog
+  Search, Trash2, ChevronRight, ChevronDown, BookOpen, FileText, RefreshCw, Loader2, ServerCog, X, AlertCircle
 } from "lucide-react";
 import { NetworkParticles } from "@/components/vigilant/NetworkParticles";
 import { AIGlobeHero } from "@/components/vigilant/AIGlobeHero";
@@ -262,12 +262,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [reportLoadingId, setReportLoadingId] = useState<string | null>(null);
 
   const getAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
-    const headers: Record<string, string> = { ...extra };
-    const apiKey = localStorage.getItem('incident_api_key') || incidentApiKey;
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-    return headers;
+    return { ...extra };
   };
 
   async function loadHistoryData() {
@@ -308,10 +303,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     // Clear API keys from localStorage
     localStorage.removeItem('openrouter_key');
     localStorage.removeItem('tavily_key');
-    localStorage.removeItem('incident_api_key');
     localStorage.removeItem('llm_model');
-    localStorage.removeItem('llm_provider');
-    localStorage.removeItem('llm_base_url');
     sessionStorage.removeItem('keys_submitted_session');
 
     // Also clear theme so both browsers revert to dark
@@ -320,10 +312,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     // Reset React state
     setOpenrouterKey('');
     setTavilyKey('');
-    setIncidentApiKey('');
     setLlmModel('google/gemini-2.0-flash-001');
-    setLlmProvider('openrouter');
-    setLlmBaseUrl('http://localhost:11434/v1');
     setIsDarkMode(true);
     setKeysSubmitted(false);
   }
@@ -357,15 +346,18 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [selectedScenarioType, setSelectedScenarioType] = useState<string>("");
   
-  // Settings loaded from local storage or defaults
-  const [llmProvider, setLlmProvider] = useState<'openrouter' | 'local'>('openrouter');
-  const [openrouterKey, setOpenrouterKey] = useState<string>('');
-  const [llmBaseUrl, setLlmBaseUrl] = useState<string>('http://localhost:11434/v1');
-  const [tavilyKey, setTavilyKey] = useState<string>('');
-  const [llmModel, setLlmModel] = useState<string>('openai/gpt-4o');
+  // Settings — initialized directly from localStorage so cockpitLocked is correct on first render.
+  // Using lazy initialisers avoids a flash-of-disabled-button that happened when useEffect ran async.
+  const [openrouterKey, setOpenrouterKey] = useState<string>(
+    () => localStorage.getItem('openrouter_key') || ''
+  );
+  const [tavilyKey, setTavilyKey] = useState<string>(
+    () => localStorage.getItem('tavily_key') || ''
+  );
+  const [llmModel, setLlmModel] = useState<string>(
+    () => localStorage.getItem('llm_model') || 'openai/gpt-4o'
+  );
   const [clientKeysAllowed, setClientKeysAllowed] = useState<boolean>(true);
-  const [authRequired, setAuthRequired] = useState<boolean>(false);
-  const [incidentApiKey, setIncidentApiKey] = useState<string>('');
   
   // Telemetry Ingestion Mode states
   const [telemetryMode, setTelemetryMode] = useState<'standard' | 'preset' | 'upload' | 'manual'>('standard');
@@ -393,7 +385,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   
   // Real Investigation running states
   const [loading, setLoading] = useState<boolean>(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [launchError, setError] = useState<string | null>(null);
   
   // Immersive gateway scanning terminal simulation
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
@@ -402,48 +394,21 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   const [keysSubmitted, setKeysSubmitted] = useState<boolean>(
     () => {
       const hasOrKey = !!localStorage.getItem('openrouter_key');
-      const isLocal = localStorage.getItem('llm_provider') === 'local';
-      return isLocal || hasOrKey;
+      return hasOrKey;
     }
   );
   
   const { runId, setRunId, setScenario } = useIncidentStore();
   const agentLogTimerRef = useRef<any>(null);
 
-  // Always require the user to supply their own OpenRouter key.
-  // Even if the server env has a key, we still enforce the user to enter one
-  // so there are no silently shared credentials.
-  const needsClientOpenRouterKey =
-    llmProvider === 'openrouter' && !openrouterKey.trim();
-  const needsIncidentApiKey = authRequired && !incidentApiKey.trim();
-  const cockpitLocked = needsClientOpenRouterKey || needsIncidentApiKey;
+  const cockpitLocked = !openrouterKey.trim();
 
-  // Retrieve keys on mount & health checks
+  // Health check + scenario load on mount
   useEffect(() => {
-    // Load saved config into state (pre-fills the gate form for returning users)
-    setOpenrouterKey(localStorage.getItem('openrouter_key') || '');
-    setTavilyKey(localStorage.getItem('tavily_key') || '');
-    setLlmModel(localStorage.getItem('llm_model') || 'openai/gpt-4o');
-    setLlmProvider((localStorage.getItem('llm_provider') as 'openrouter' | 'local') || 'openrouter');
-    setLlmBaseUrl(localStorage.getItem('llm_base_url') || 'http://localhost:11434/v1');
-    setIncidentApiKey(localStorage.getItem('incident_api_key') || '');
-
     async function load() {
       try {
         const health = await getHealth();
         setClientKeysAllowed(health.client_keys_allowed);
-        setAuthRequired(health.auth_required);
-
-        // Detect backend restart — clear stale localStorage keys so the gate re-appears
-        const storedInstanceId = localStorage.getItem('server_instance_id');
-        if (storedInstanceId && storedInstanceId !== health.server_instance_id) {
-          ['openrouter_key','tavily_key','incident_api_key','llm_model','llm_provider','llm_base_url'].forEach(k => localStorage.removeItem(k));
-          sessionStorage.removeItem('keys_submitted_session');
-          setOpenrouterKey(''); setTavilyKey(''); setIncidentApiKey('');
-          setLlmModel('google/gemini-2.0-flash-001'); setLlmProvider('openrouter'); setLlmBaseUrl('http://localhost:11434/v1');
-          setKeysSubmitted(false);
-        }
-        localStorage.setItem('server_instance_id', health.server_instance_id);
 
         const data = await listScenarios();
         setScenarios(data);
@@ -528,7 +493,7 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
   // Launch a real backend investigation and redirect to Live graph page
   const handleStart = async () => {
     // Hard guard — never launch without a key regardless of server state
-    if (llmProvider === 'openrouter' && !openrouterKey.trim()) {
+    if (!openrouterKey.trim()) {
       setError('OpenRouter API key is required. Enter your key in the API Keys tab before launching.');
       return;
     }
@@ -557,14 +522,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
     localStorage.setItem('openrouter_key', openrouterKey);
     localStorage.setItem('tavily_key', tavilyKey);
     localStorage.setItem('llm_model', llmModel);
-    localStorage.setItem('llm_provider', llmProvider);
-    localStorage.setItem('llm_base_url', llmBaseUrl);
-    localStorage.setItem('incident_api_key', incidentApiKey);
-
-    const targetBaseUrl = llmProvider === 'local' ? llmBaseUrl : undefined;
-    // Always send the user-supplied key so the backend uses it directly
-    const targetKey = llmProvider === 'openrouter' ? openrouterKey : undefined;
-
     let activeScenarioType = '';
     let activeCustomTelemetry: any = undefined;
 
@@ -592,10 +549,9 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
       const response = await startIncident(
         activeScenarioType,
         {
-          openrouterApiKey: targetKey,
+          openrouterApiKey: openrouterKey,
           tavilyApiKey: clientKeysAllowed ? tavilyKey : undefined,
           llmModel,
-          llmBaseUrl: targetBaseUrl,
           customTelemetry: activeCustomTelemetry,
           clientKeysAllowed,
         }
@@ -635,7 +591,29 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
 
   return (
     <div className="w-full h-full overflow-y-auto font-sans transition-colors duration-300 bg-[var(--bg)] text-[var(--ink)]">
-      
+
+      {/* Floating launch-error toast — appears when handleStart encounters an error */}
+      {launchError && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+          padding: '13px 18px', borderRadius: 12, maxWidth: 520,
+          background: 'rgba(220,38,38,.95)', color: '#fff',
+          boxShadow: '0 8px 32px rgba(220,38,38,.4)', backdropFilter: 'blur(8px)',
+          fontSize: 13, fontWeight: 600, lineHeight: 1.4,
+          animation: 'fade-in 200ms ease',
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{launchError}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 0, display: 'flex' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="absolute top-0 right-0 w-[45%] h-[400px] bg-sky-500/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Unified Command Header */}
@@ -905,10 +883,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
               setTavilyKey={setTavilyKey}
               llmModel={llmModel}
               setLlmModel={setLlmModel}
-              llmProvider={llmProvider}
-              setLlmProvider={setLlmProvider}
-              llmBaseUrl={llmBaseUrl}
-              setLlmBaseUrl={setLlmBaseUrl}
               onSubmit={() => {
                 // Mark this session as having submitted — survives tab navigation
                 // but resets on page refresh / new tab, re-showing the gate.
@@ -940,10 +914,6 @@ export function HomePage({ defaultTab }: { defaultTab?: "history" | "sandbox" })
             setTavilyKey={setTavilyKey}
             llmModel={llmModel}
             setLlmModel={setLlmModel}
-            llmProvider={llmProvider}
-            setLlmProvider={setLlmProvider}
-            llmBaseUrl={llmBaseUrl}
-            setLlmBaseUrl={setLlmBaseUrl}
           />
           )
         ) : (

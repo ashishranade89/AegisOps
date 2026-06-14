@@ -2,6 +2,7 @@ from pathlib import Path
 from functools import lru_cache
 from langchain_openai import ChatOpenAI
 from backend.utils.config import get_config
+import logging
 
 config = get_config()
 
@@ -38,16 +39,17 @@ def get_llm(
     model = model_name or config.model_name or _DEFAULT_MODEL
     target_base_url = base_url or config.openrouter_base_url
 
-    # Inject placeholder keys for local endpoints (Ollama / LM Studio)
-    if not key and target_base_url and (
-        "localhost" in target_base_url or "127.0.0.1" in target_base_url
-    ):
-        key = "ollama" if "11434" in target_base_url else "lm-studio"
+    # Log the key usage (masked) and targets for debugging
+    logger = logging.getLogger(__name__)
+    masked = "(none)" if not key else f"{key[:8]}..."
+    logger.debug("get_llm: key=%s model=%s base_url=%s", masked, model, target_base_url)
+    # Also print directly so it appears in stdout/stderr immediately during dev
+    print(f"[DEBUG] get_llm: key={masked} model={model} base_url={target_base_url}")
 
     return ChatOpenAI(
         model=model,
         base_url=target_base_url,
-        openai_api_key=key,
+        api_key=key,
         temperature=0,
         max_tokens=max_tokens,
     )

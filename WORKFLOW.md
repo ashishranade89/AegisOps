@@ -2,6 +2,12 @@
 
 This document provides a detailed look into how AegisOps operates, the roles of various agents, and the flow of data through the system.
 
+## Changelog Maintenance
+
+- `changelog.md` is generated from `git log` and should be refreshed whenever commits change.
+- Run `scripts/update-changelog.ps1` to rebuild it manually.
+- For automatic refreshes on commit and merge, point git at `.githooks` with `git config core.hooksPath .githooks`.
+
 ## 🏗️ Architectural Overview
 
 The system is built on a **Stateful Agent Swarm** architecture using **LangGraph**. Unlike traditional linear pipelines, this allows for dynamic routing, retries, and self-healing.

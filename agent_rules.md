@@ -14,6 +14,11 @@ e missing during execution, raise an error or flag for human escalation instead 
 ## 3. Platform Security Disclosures
 - **Security Validation Policy**: The platform relies solely on content-based file validation (file extension whitelist and hex signature magic bytes verification). Do NOT claim or output statements indicating that malware scanning, ClamAV, YARA, or other active antivirus tools are implemented or running.
 
+## 4. Startup Launcher Notes
+- **Windows launcher**: `start.ps1` preflights ports `8004` and `5176`, clears existing listeners, and tolerates stale PID rows that no longer map to a live process.
+- **Backend fallback**: If `8004` is still unavailable after cleanup, `start.ps1` automatically selects the next free backend port and exports it to the frontend via `AEGISOPS_BACKEND_URL`.
+- **Process waiting**: `start.ps1` no longer uses `Wait-Process`; it polls for active child processes so an early-exiting backend or frontend does not crash shutdown handling.
+
 ## 4. Output Formatting & Precision
 - **Data Integrity**: Base all findings on real data provided in raw logs and metrics. Do not invent timestamps, error messages, or IP addresses.
 - **JSON Formatting**: When requested to return JSON, return ONLY valid JSON structure, free of unescaped quotes or invalid types.

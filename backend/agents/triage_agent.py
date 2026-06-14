@@ -8,7 +8,7 @@ import backend.utils.cost_tracker as cost_tracker
 
 async def triage_node(state: IncidentState) -> IncidentState:
     run_id = state.get("incident_id", "CLI-RUN")
-    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), state.get("llm_base_url"))
+    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"))
 
     # Notify SSE listeners of phase change
     await send_sse_event(run_id, "phase_change", {"phase": "triage"})

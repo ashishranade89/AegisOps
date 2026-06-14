@@ -8,12 +8,7 @@ export function useSSE(runId: string | null) {
   useEffect(() => {
     if (!runId) return
 
-    // SSE Stream URL
-    const apiKey = localStorage.getItem('incident_api_key')
-    const streamUrl = apiKey
-      ? `/api/incident/${runId}/stream?api_key=${encodeURIComponent(apiKey)}`
-      : `/api/incident/${runId}/stream`
-    const es = new EventSource(streamUrl)
+    const es = new EventSource(`/api/incident/${runId}/stream`)
 
     const handle = (type: string) => (e: MessageEvent) => {
       try {

@@ -47,7 +47,8 @@ OPENROUTER_MODEL=google/gemini-2.0-flash-exp  # Recommended default
 TAVILY_API_KEY=your_tavily_key  # Optional
 
 # Production Security
-INCIDENT_API_KEY=secure_random_string  # Required if ALLOW_CLIENT_API_KEYS=false
+# Incident API key headers are disabled for this app.
+# Windows launcher note: `.\start.ps1` clears listeners on startup and can fall back off port 8004 if needed.
 ALLOW_CLIENT_API_KEYS=true             # Set to false for internal deployments
 
 # Log Source Monitor (optional)
@@ -131,6 +132,6 @@ If something goes wrong, run the repair script:
 ./fix.sh
 ```
 Common issues and fixes:
-- **Port Conflicts**: Ensure ports 8004 and 5176 are free.
+- **Port Conflicts**: `./start.sh` or `.\start.ps1` clear listeners automatically; if you are starting things manually, ensure ports 8004 and 5176 are free.
 - **Missing Deps**: Run `uv sync` and `npm install` again.
 - **LLM Errors**: Check your OpenRouter balance and API key validity.

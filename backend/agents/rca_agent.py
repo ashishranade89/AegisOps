@@ -4,11 +4,18 @@ from backend.tools.llm_config import get_llm, load_agent_rules
 from langchain_core.messages import SystemMessage, HumanMessage
 from backend.api.streaming import send_sse_event
 import backend.utils.cost_tracker as cost_tracker
+import logging
 
 async def rca_node(state: IncidentState) -> IncidentState:
     run_id = state.get("incident_id", "CLI-RUN")
-    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), state.get("llm_base_url"))
-    
+    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"))
+    # Emit masked key for debugging authentication issues
+    try:
+        masked_key = (state.get("openrouter_api_key") or "")[:8]
+        logging.getLogger(__name__).info("rca_node using openrouter_api_key=%s...", masked_key)
+        print(f"[DEBUG] rca_node openrouter_api_key={masked_key}...")
+    except Exception:
+        pass
     await send_sse_event(run_id, "phase_change", {"phase": "root_cause_analysis"})
     await send_sse_event(run_id, "agent_start", {"agent_name": "Root Cause Analyzer"})
     

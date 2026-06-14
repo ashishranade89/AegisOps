@@ -30,10 +30,6 @@ def get_vector_store_and_fallback_path(model_name: str | None, api_key: str = No
     vs = None
     target_key = api_key or config.openrouter_api_key
     target_base = base_url or config.openrouter_base_url
-    
-    # Inject placeholder for local validation if needed
-    if not target_key and target_base and ("localhost" in target_base or "127.0.0.1" in target_base):
-        target_key = "ollama" if "11434" in target_base else "lm-studio"
         
     try:
         from langchain_openai import OpenAIEmbeddings
@@ -43,7 +39,7 @@ def get_vector_store_and_fallback_path(model_name: str | None, api_key: str = No
         emb = OpenAIEmbeddings(
             model="text-embedding-3-small" if not base_url else (model_name or "text-embedding-3-small"),
             base_url=target_base,
-            openai_api_key=target_key
+            api_key=target_key
         )
         
         persist_dir = str(DB_DIR / f"chroma_{suffix}")

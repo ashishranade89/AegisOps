@@ -19,15 +19,6 @@ export interface HealthResponse {
   server_instance_id: string
 }
 
-function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const headers: Record<string, string> = { ...extra }
-  const apiKey = localStorage.getItem('incident_api_key')
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`
-  }
-  return headers
-}
-
 export async function getHealth(): Promise<HealthResponse> {
   const res = await fetch('/health')
   if (!res.ok) throw new Error(await res.text())
@@ -35,7 +26,7 @@ export async function getHealth(): Promise<HealthResponse> {
 }
 
 export async function listScenarios(): Promise<ScenarioInfo[]> {
-  const res = await fetch(`${API_BASE}/scenarios`, { headers: authHeaders() })
+  const res = await fetch(`${API_BASE}/scenarios`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -46,7 +37,6 @@ export async function startIncident(
     openrouterApiKey?: string
     tavilyApiKey?: string
     llmModel?: string
-    llmBaseUrl?: string
     customTelemetry?: any
     clientKeysAllowed?: boolean
   } = {}
@@ -54,18 +44,18 @@ export async function startIncident(
   const body: Record<string, unknown> = {
     scenario_type: scenarioType,
     llm_model: options.llmModel,
-    llm_base_url: options.llmBaseUrl,
     custom_telemetry: options.customTelemetry,
   }
 
-  if (options.clientKeysAllowed) {
-    if (options.openrouterApiKey) body.openrouter_api_key = options.openrouterApiKey
-    if (options.tavilyApiKey) body.tavily_api_key = options.tavilyApiKey
-  }
+  // Always forward user-supplied keys — backend decides whether to use them
+  // based on ALLOW_CLIENT_API_KEYS. This prevents silent failures when the
+  // server has no server-side key configured.
+  if (options.openrouterApiKey) body.openrouter_api_key = options.openrouterApiKey
+  if (options.tavilyApiKey) body.tavily_api_key = options.tavilyApiKey
 
   const res = await fetch(API_BASE, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -79,12 +69,11 @@ export async function chatAboutIncident(
 ): Promise<{ reply: string; retry_mode?: boolean; retry_count?: number }> {
   const openrouterApiKey = localStorage.getItem('openrouter_key') || undefined
   const llmModel = localStorage.getItem('llm_model') || undefined
-  const llmBaseUrl = localStorage.getItem('llm_base_url') || undefined
 
   const res = await fetch(`/api/incident/${runId}/chat`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ message, history, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, history, openrouter_api_key: openrouterApiKey, llm_model: llmModel }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
@@ -96,12 +85,11 @@ export async function resumeIncident(
 ): Promise<{ run_id: string; status: string }> {
   const openrouterApiKey = localStorage.getItem('openrouter_key') || undefined
   const llmModel = localStorage.getItem('llm_model') || undefined
-  const llmBaseUrl = localStorage.getItem('llm_base_url') || undefined
 
   const res = await fetch(`${API_BASE}/${runId}/resume`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ approval, openrouter_api_key: openrouterApiKey, llm_model: llmModel, llm_base_url: llmBaseUrl }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approval, openrouter_api_key: openrouterApiKey, llm_model: llmModel }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
@@ -110,7 +98,6 @@ export async function resumeIncident(
 export async function stopIncident(runId: string): Promise<{ run_id: string; status: string }> {
   const res = await fetch(`${API_BASE}/${runId}/stop`, {
     method: 'POST',
-    headers: authHeaders(),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
@@ -198,4 +185,45 @@ export async function toggleMonitor(id: string, enabled: boolean): Promise<Monit
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
+}
+
+// ─── Slack / Jira Integration Tests ───────────────────────────────────────────
+
+export interface TestResult {
+  ok: boolean
+  message: string
+}
+
+export async function testSlack(creds: {
+  slack_bot_token: string
+}): Promise<TestResult> {
+  try {
+    const res = await fetch('/api/test/slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slack_bot_token: creds.slack_bot_token }),
+    })
+    if (!res.ok) return { ok: false, message: 'Could not reach server — try again' }
+    return res.json()
+  } catch {
+    return { ok: false, message: 'Network error — check your connection' }
+  }
+}
+
+export async function testJira(creds: {
+  jira_base_url: string
+  jira_email: string
+  jira_api_token: string
+}): Promise<TestResult> {
+  try {
+    const res = await fetch('/api/test/jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(creds),
+    })
+    if (!res.ok) return { ok: false, message: 'Could not reach server — try again' }
+    return res.json()
+  } catch {
+    return { ok: false, message: 'Network error — check your connection' }
+  }
 }

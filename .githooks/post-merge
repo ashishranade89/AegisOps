@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update-changelog.ps1

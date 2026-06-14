@@ -63,7 +63,7 @@ The system is built on **LangGraph** — a stateful graph execution engine — w
 | Layer | Technology |
 |---|---|
 | LLM Orchestration | LangGraph 0.0.60+, LangChain 0.1+ |
-| LLM Provider | OpenRouter (Gemini, GPT-4o, Claude, DeepSeek, Ollama, etc.) |
+| LLM Provider | OpenRouter (Gemini, GPT-4o, Claude, DeepSeek) |
 | Backend Framework | FastAPI 0.115+ with Uvicorn |
 | Real-time Streaming | Server-Sent Events (SSE) via `sse-starlette` |
 | Browser Automation | Playwright via `stagehand` |
@@ -310,11 +310,7 @@ Contextual AI assistant for plain-language incident Q&A. Features:
 
 **File:** `backend/api/auth.py`
 
-Optional API key middleware. When `INCIDENT_API_KEY` is set in `.env`:
-- Accepts `Authorization: Bearer <key>` header, or `X-API-Key: <key>` header
-- Returns `HTTP 401` if neither header matches
-
-If `INCIDENT_API_KEY` is empty, all requests pass through unauthenticated (development mode).
+API auth is disabled for local and hackathon use. `/api/incident/*` routes do not require `Authorization` or `X-API-Key` headers.
 
 ---
 
@@ -383,7 +379,7 @@ Manages in-memory run state and Server-Sent Events delivery.
 
 1. If `ALLOW_CLIENT_API_KEYS=true` and the request body includes `openrouter_api_key` → use client-provided key
 2. Otherwise → use server-side `OPENROUTER_API_KEY` from `.env`
-3. Same logic applies for `tavily_api_key` and `llm_base_url`
+3. Same logic applies for `tavily_api_key`
 
 Ensures API keys never leave the server in production mode (`ALLOW_CLIENT_API_KEYS=false`).
 
@@ -658,7 +654,6 @@ Pydantic `BaseSettings` model reading from `.env`:
 | `openrouter_model` | `google/gemini-2.5-flash` | Default model |
 | `tavily_api_key` | — | Tavily search key |
 | `slack_webhook_url` | — | Slack webhook URL |
-| `incident_api_key` | — | Protects API routes |
 | `allow_client_api_keys` | `False` | Allow browser to send keys |
 | `checkpoint_db_path` | `data/checkpoints.db` | LangGraph state storage |
 | `runs_db_path` | `data/runs.db` | Run metadata storage |
@@ -765,7 +760,7 @@ Stores: `runId`, `status`, `events` (SSE event list), `phase`, `report`, `approv
 
 **File:** `frontend/src/lib/api.ts`
 
-Typed `fetch()` wrappers: `startIncident`, `resumeIncident`, `getIncident`, `chatAboutIncident`, `getHistory`, `getRagEntries`. Auth header (`X-API-Key`) read from `localStorage.incident_api_key`.
+Typed `fetch()` wrappers: `startIncident`, `resumeIncident`, `getIncident`, `chatAboutIncident`, `getHistory`, `getRagEntries`. No incident API key header is sent.
 
 Monitor management functions: `listMonitors()`, `createMonitor(payload)`, `updateMonitor(id, payload)`, `deleteMonitor(id)`, `toggleMonitor(id, enabled)`. Types exported: `MonitorType`, `MonitorCredentials`, `Monitor`, `MonitorPayload`.
 
@@ -984,10 +979,9 @@ Auto-generated on first startup. Used by `backend/monitors/encryption.py` to enc
 |---|---|---|---|
 | `OPENROUTER_API_KEY` | — | Yes | OpenRouter API key |
 | `OPENROUTER_MODEL` | `google/gemini-2.5-flash` | No | Default LLM model |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | No | Override for local LLMs (Ollama, etc.) |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | No | OpenRouter API base URL |
 | `TAVILY_API_KEY` | — | No | Enables Tavily real-time web search |
 | `SLACK_WEBHOOK_URL` | — | No | Enables Slack incident notifications |
-| `INCIDENT_API_KEY` | — | No | Protects all `/api/incident/*` routes |
 | `ALLOW_CLIENT_API_KEYS` | `false` | No | Allow browser to send API keys (dev only) |
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | No | LangGraph checkpoint SQLite path |
 | `RUNS_DB_PATH` | `data/runs.db` | No | Run metadata SQLite path |

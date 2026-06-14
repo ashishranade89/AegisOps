@@ -1,3 +1,10 @@
+import hashlib
+import hmac
+import json
+import time
+import urllib.parse
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -27,16 +34,10 @@ async def test_start_incident_requires_scenario(client):
 
 
 @pytest.mark.asyncio
-async def test_auth_enforced_when_configured(client, monkeypatch):
+async def test_incident_routes_do_not_require_api_key_header(client, monkeypatch):
     monkeypatch.setenv("INCIDENT_API_KEY", "secret-test-key")
 
     response = await client.get("/api/incident/scenarios")
-    assert response.status_code == 401
-
-    response = await client.get(
-        "/api/incident/scenarios",
-        headers={"Authorization": "Bearer secret-test-key"},
-    )
     assert response.status_code == 200
 
 
@@ -141,4 +142,156 @@ async def test_monitor_delete(client):
 async def test_monitor_not_found_returns_404(client):
     resp = await client.get("/api/monitors/nonexistent-monitor-id")
     assert resp.status_code == 404
+
+
+# ── Slack Action ──────────────────────────────────────────────────────────────
+def _slack_signature(secret: str, body: str) -> tuple[str, str]:
+    """Returns (timestamp, X-Slack-Signature) for a test request body."""
+    ts = str(int(time.time()))
+    sig_base = f"v0:{ts}:{body}"
+    sig = "v0=" + hmac.new(secret.encode(), sig_base.encode(), hashlib.sha256).hexdigest()
+    return ts, sig
+
+
+@pytest.mark.asyncio
+async def test_slack_action_missing_payload(client):
+    response = await client.post("/api/slack/action", content="", headers={
+        "Content-Type": "application/x-www-form-urlencoded"
+    })
+    # No actions in payload → returns empty 200
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_slack_action_invalid_signature(client, monkeypatch):
+    monkeypatch.setenv("SLACK_SIGNING_SECRET", "real-secret")
+    payload_dict = {"actions": [{"action_id": "approve", "value": "RUN-001"}], "user": {"name": "alice"}}
+    body = "payload=" + urllib.parse.quote(json.dumps(payload_dict))
+
+    response = await client.post(
+        "/api/slack/action",
+        content=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Slack-Request-Timestamp": str(int(time.time())),
+            "X-Slack-Signature": "v0=badsignature",
+        },
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_slack_action_valid_signature_unknown_run(client, monkeypatch):
+    secret = "test-signing-secret"
+    monkeypatch.setenv("SLACK_SIGNING_SECRET", secret)
+    monkeypatch.setenv("SLACK_DRY_RUN", "true")
+
+    payload_dict = {"actions": [{"action_id": "approve", "value": "nonexistent-run-id"}], "user": {"name": "alice"}}
+    body = "payload=" + urllib.parse.quote(json.dumps(payload_dict))
+    ts, sig = _slack_signature(secret, body)
+
+    response = await client.post(
+        "/api/slack/action",
+        content=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Slack-Request-Timestamp": ts,
+            "X-Slack-Signature": sig,
+        },
+    )
+    # Run not found or not paused → returns 200 with empty body (Slack requires this)
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_test_slack_returns_ok_on_valid_token(client):
+    with patch("backend.api.app._call_slack_auth_test", new=AsyncMock(return_value={"ok": True, "team": "Acme Corp"})):
+        response = await client.post(
+            "/api/test/slack",
+            json={"slack_bot_token": "xoxb-valid"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert "Acme Corp" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_slack_returns_error_on_invalid_token(client):
+    with patch("backend.api.app._call_slack_auth_test", new=AsyncMock(return_value={"ok": False, "error": "invalid_auth"})):
+        response = await client.post(
+            "/api/test/slack",
+            json={"slack_bot_token": "xoxb-bad"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert "invalid_auth" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_slack_requires_token(client):
+    response = await client.post("/api/test/slack", json={})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_test_jira_returns_ok_on_valid_creds(client):
+    with patch(
+        "backend.api.app._call_jira_myself",
+        new=AsyncMock(return_value=(200, {"displayName": "Jane Doe"})),
+    ):
+        response = await client.post(
+            "/api/test/jira",
+            json={
+                "jira_base_url": "https://acme.atlassian.net",
+                "jira_email": "jane@acme.com",
+                "jira_api_token": "token123",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert "Jane Doe" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_jira_returns_error_on_bad_creds(client):
+    with patch(
+        "backend.api.app._call_jira_myself",
+        new=AsyncMock(return_value=(401, {})),
+    ):
+        response = await client.post(
+            "/api/test/jira",
+            json={
+                "jira_base_url": "https://acme.atlassian.net",
+                "jira_email": "jane@acme.com",
+                "jira_api_token": "badtoken",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert "401" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_test_jira_requires_all_three_fields(client):
+    response = await client.post(
+        "/api/test/jira",
+        json={"jira_base_url": "https://acme.atlassian.net", "jira_email": "x@x.com"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_test_jira_rejects_invalid_base_url(client):
+    response = await client.post(
+        "/api/test/jira",
+        json={"jira_base_url": "not-a-url", "jira_email": "x@x.com", "jira_api_token": "tok"},
+    )
+    assert response.status_code == 422
 

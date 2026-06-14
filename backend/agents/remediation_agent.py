@@ -42,7 +42,7 @@ async def remediation_node(state: IncidentState) -> IncidentState:
             "last_error": None,
         }
 
-    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"), state.get("llm_base_url"))
+    llm = get_llm(state.get("openrouter_api_key"), state.get("llm_model"))
     
     await send_sse_event(run_id, "phase_change", {"phase": "remediation"})
     await send_sse_event(run_id, "agent_start", {"agent_name": "Remediation Agent"})

@@ -12,9 +12,12 @@ from contextlib import asynccontextmanager
 SERVER_INSTANCE_ID = str(uuid.uuid4())
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+from pydantic import BaseModel, ValidationError, field_validator
 from sse_starlette.sse import EventSourceResponse
 
 from backend.api.auth import require_api_auth
@@ -35,11 +38,50 @@ from backend.monitors.persistence import (
 from backend.simulators.payment_outage import list_payment_scenarios
 from backend.utils.config import get_config
 
+import base64
+import hashlib
+import hmac
+import httpx
+import json
+import time
+from backend.agents.slack_agent import send_slack_approval
+from backend.tools.slack_bot_tool import update_approval_message
+from backend.tools.jira_tool import update_jira_status, add_jira_comment
+
+# ─── Test-connection models ────────────────────────────────────────────────────
+
+class TestSlackRequest(BaseModel):
+    slack_bot_token: str
+
+
+class TestJiraRequest(BaseModel):
+    jira_base_url: str
+    jira_email: str
+    jira_api_token: str
+
+    @field_validator("jira_base_url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("jira_base_url must start with http:// or https://")
+        return v.rstrip("/")
+
+
+class TestConnectionResponse(BaseModel):
+    ok: bool
+    message: str
+
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("backend.tools.llm_config").setLevel(logging.DEBUG)
 
 _checkpointer = None
 _running_tasks = {}
@@ -150,7 +192,6 @@ async def run_graph_task(
                 "openrouter_api_key": credentials["openrouter_api_key"],
                 "tavily_api_key": credentials["tavily_api_key"],
                 "llm_model": credentials["llm_model"],
-                "llm_base_url": credentials["llm_base_url"],
                 "agent_costs": {},
                 "total_cost_usd": 0.0,
                 "messages": [],
@@ -182,6 +223,10 @@ async def run_graph_task(
                     "browser_result": vals.get("browser_result"),
                     "web_search_result": vals.get("web_search_result"),
                 })
+                # Send Slack approval message and store ts in graph state for later threading
+                slack_ts = await send_slack_approval(vals, run_id)
+                if slack_ts:
+                    await compiled_graph.aupdate_state(config, {"slack_approval_ts": slack_ts})
                 state.status = "paused"
                 state.current_phase = "paused_for_approval"
                 persist_run(state)
@@ -265,6 +310,35 @@ async def resume_incident(run_id: str, payload: dict):
     try:
         state.status = "resuming"
         persist_run(state)
+        # Update Slack message and Jira ticket status to reflect the decision
+        try:
+            from backend.graph.incident_graph import get_compiled_graph
+            compiled = get_compiled_graph()
+            cfg = {"configurable": {"thread_id": run_id}}
+            current = await compiled.aget_state(cfg)
+            if current and current.values:
+                cv = current.values
+                slack_ts = cv.get("slack_approval_ts")
+                jira_ticket_id = cv.get("jira_ticket_id")
+                judge = approval.judge_name or "Web UI"
+                decision = "approved" if approval.status == "approved" else "rejected"
+
+                if slack_ts:
+                    update_approval_message(
+                        message_ts=slack_ts,
+                        decision=decision,
+                        decided_by=judge,
+                    )
+                if jira_ticket_id:
+                    jira_status = "In Progress" if decision == "approved" else "Closed"
+                    update_jira_status.invoke({"ticket_id": jira_ticket_id, "status": jira_status})
+                    if decision == "rejected" and approval.comments:
+                        add_jira_comment.invoke({
+                            "ticket_id": jira_ticket_id,
+                            "comment": f"Rejected by {judge}: {approval.comments}"
+                        })
+        except Exception as _e:
+            logger.warning("Jira/Slack update on resume failed (non-fatal): %s", _e)
         task = asyncio.create_task(
             run_graph_task(
                 run_id,
@@ -330,7 +404,7 @@ async def get_cost(run_id: str):
 async def chat_about_incident(run_id: str, payload: dict):
     """
     AI assistant that answers questions about a specific incident in plain language.
-    Accepts: message, history[], openrouter_api_key, llm_model, llm_base_url
+    Accepts: message, history[], openrouter_api_key, llm_model
     """
     from backend.tools.llm_config import get_llm
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -343,7 +417,6 @@ async def chat_about_incident(run_id: str, payload: dict):
     llm = get_llm(
         credentials.get("openrouter_api_key"),
         credentials.get("llm_model"),
-        credentials.get("llm_base_url"),
         max_tokens=600,
     )
 
@@ -679,13 +752,198 @@ async def toggle_monitor_route(mid: str, payload: dict):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+@app.post("/api/slack/action")
+async def slack_action(request: Request):
+    """
+    Handles interactive Slack button callbacks (Approve / Reject).
+    Verifies Slack signing secret, then resumes the pipeline.
+    """
+    from backend.utils.config import get_config as _cfg
+    import urllib.parse as _urlparse
+
+    body_bytes = await request.body()
+    body_str = body_bytes.decode("utf-8")
+
+    # Verify Slack signing secret
+    signing_secret = _cfg().slack_signing_secret
+    if signing_secret:
+        timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
+        slack_sig = request.headers.get("X-Slack-Signature", "")
+        # Reject replays older than 5 minutes
+        if abs(time.time() - float(timestamp or 0)) > 300:
+            raise HTTPException(status_code=403, detail="Request too old")
+        sig_basestring = f"v0:{timestamp}:{body_str}"
+        computed = "v0=" + hmac.new(
+            signing_secret.encode(),
+            sig_basestring.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(computed, slack_sig):
+            logger.warning("Slack signature mismatch from IP %s", request.client.host)
+            raise HTTPException(status_code=403, detail="Invalid signature")
+
+    # Parse the payload form field
+    parsed = _urlparse.parse_qs(body_str)
+    payload_str = parsed.get("payload", ["{}"])[0]
+    payload = json.loads(payload_str)
+
+    actions = payload.get("actions", [])
+    if not actions:
+        return {}
+
+    action = actions[0]
+    action_id = action.get("action_id")   # "approve" or "reject"
+    run_id = action.get("value", "")
+    user_name = payload.get("user", {}).get("name", "Slack User")
+
+    # Immediately update the Slack message to prevent double-clicks
+    try:
+        from backend.graph.incident_graph import get_compiled_graph
+        compiled = get_compiled_graph()
+        cfg = {"configurable": {"thread_id": run_id}}
+        current = await compiled.aget_state(cfg)
+        slack_ts = (current.values or {}).get("slack_approval_ts") if current else None
+        jira_ticket_id = (current.values or {}).get("jira_ticket_id") if current else None
+    except Exception:
+        slack_ts = None
+        jira_ticket_id = None
+
+    decision = "approved" if action_id == "approve" else "rejected"
+
+    if slack_ts:
+        update_approval_message(
+            message_ts=slack_ts,
+            decision=decision,
+            decided_by=user_name,
+        )
+
+    if jira_ticket_id:
+        jira_status = "In Progress" if decision == "approved" else "Closed"
+        update_jira_status.invoke({"ticket_id": jira_ticket_id, "status": jira_status})
+        if decision == "rejected":
+            add_jira_comment.invoke({
+                "ticket_id": jira_ticket_id,
+                "comment": f"Rejected via Slack by {user_name}",
+            })
+
+    # Resume the pipeline using the same path as the web UI
+    run_state = get_run(run_id)
+    if not run_state or run_state.status != "paused":
+        logger.warning("Slack action on non-paused run %s (status=%s)",
+                       run_id, run_state.status if run_state else "not found")
+        return {}
+
+    approval_status = "approved" if action_id == "approve" else "rejected"
+    approval = ApprovalDecision(status=approval_status, judge_name=user_name)
+
+    run_state.status = "resuming"
+    persist_run(run_state)
+
+    credentials = resolve_llm_credentials({})  # uses server-side config
+    task = asyncio.create_task(
+        run_graph_task(
+            run_id,
+            run_state.scenario_type,
+            credentials=credentials,
+            resume_state={"approval": approval.model_dump()},
+        )
+    )
+    _running_tasks[run_id] = task
+    task.add_done_callback(lambda t: _running_tasks.pop(run_id, None))
+
+    # Slack requires HTTP 200 with empty body within 3 seconds
+    return {}
+
+
 @app.get("/health")
 async def health():
     config = get_config()
     return {
         "status": "ok",
         "llm_configured": config.llm_configured(),
-        "auth_required": bool(config.incident_api_key),
+        "auth_required": False,
         "client_keys_allowed": config.allow_client_api_keys,
         "server_instance_id": SERVER_INSTANCE_ID,
     }
+
+
+# ─── Integration test helpers (extracted for easy mocking in tests) ───────────
+
+async def _call_slack_auth_test(token: str) -> dict:
+    async with httpx.AsyncClient(timeout=10) as c:
+        resp = await c.post(
+            "https://slack.com/api/auth.test",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    return resp.json()
+
+
+async def _call_jira_myself(base_url: str, email: str, api_token: str) -> tuple[int, dict]:
+    credentials = base64.b64encode(f"{email}:{api_token}".encode()).decode()
+    url = base_url.rstrip("/") + "/rest/api/2/myself"
+    async with httpx.AsyncClient(timeout=10) as c:
+        resp = await c.get(
+            url,
+            headers={"Authorization": f"Basic {credentials}", "Accept": "application/json"},
+        )
+    try:
+        return resp.status_code, resp.json()
+    except Exception:
+        return resp.status_code, {}
+
+
+# ─── Test-connection endpoints ────────────────────────────────────────────────
+
+@app.post("/api/test/slack", response_model=TestConnectionResponse)
+async def test_slack_connection(req: TestSlackRequest) -> TestConnectionResponse:
+    try:
+        data = await _call_slack_auth_test(req.slack_bot_token)
+        if data.get("ok"):
+            team = data.get("team", "your workspace")
+            return TestConnectionResponse(ok=True, message=f'Connected to workspace "{team}"')
+        error = data.get("error", "unknown_error")
+        return TestConnectionResponse(ok=False, message=f"{error} — check your Slack Bot Token")
+    except httpx.TimeoutException:
+        return TestConnectionResponse(ok=False, message="Could not reach Slack — request timed out")
+    except Exception:
+        return TestConnectionResponse(ok=False, message="Unexpected error — try again")
+
+
+@app.post("/api/test/jira", response_model=TestConnectionResponse)
+async def test_jira_connection(req: TestJiraRequest) -> TestConnectionResponse:
+    try:
+        status_code, data = await _call_jira_myself(
+            req.jira_base_url, req.jira_email, req.jira_api_token
+        )
+        if status_code == 200:
+            name = data.get("displayName", "unknown")
+            return TestConnectionResponse(ok=True, message=f'Authenticated as "{name}"')
+        if status_code == 401:
+            return TestConnectionResponse(
+                ok=False, message="401 Unauthorized — check your Jira email and API token"
+            )
+        return TestConnectionResponse(
+            ok=False, message=f"Jira returned {status_code} — check your Base URL"
+        )
+    except httpx.TimeoutException:
+        return TestConnectionResponse(ok=False, message="Could not reach Jira — request timed out")
+    except Exception:
+        return TestConnectionResponse(ok=False, message="Unexpected error — try again")
+
+
+# Serve the compiled React frontend (production only — skipped if dist not built)
+_FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+if _FRONTEND_DIST.exists():
+    _assets_dir = _FRONTEND_DIST / "assets"
+    if _assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="frontend-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _serve_spa(full_path: str):
+        # Serve known static files (favicon, icons, etc.) directly
+        candidate = _FRONTEND_DIST / full_path
+        if full_path and candidate.exists() and candidate.is_file():
+            return FileResponse(str(candidate))
+        # Fall back to index.html for all SPA routes
+        return FileResponse(str(_FRONTEND_DIST / "index.html"))

@@ -383,10 +383,12 @@
       <tr><td><code>SLACK_BOT_TOKEN</code></td><td><span class="opt">Optional</span></td><td>Rich Slack Bot: Block Kit approvals, threaded updates, interactive buttons</td><td>Slack App → OAuth &amp; Permissions</td></tr>
       <tr><td><code>SLACK_CHANNEL_ID</code></td><td><span class="opt">Optional</span></td><td>Channel the bot posts to</td><td>Slack channel details</td></tr>
       <tr><td><code>SLACK_SIGNING_SECRET</code></td><td><span class="opt">Optional</span></td><td>Verifies <code>/api/slack/action</code> button callbacks</td><td>Slack App → Basic Information</td></tr>
+      <tr><td><code>SLACK_DRY_RUN</code></td><td><span class="opt">Optional</span></td><td><code>true</code> = log Slack calls without hitting API (dev/testing mode)</td><td>—</td></tr>
       <tr><td><code>JIRA_BASE_URL</code></td><td><span class="opt">Optional</span></td><td rowspan="4">Auto-create Jira tickets after triage (all four required together)</td><td>Your Atlassian domain</td></tr>
       <tr><td><code>JIRA_EMAIL</code></td><td><span class="opt">Optional</span></td><td>Atlassian account email</td></tr>
       <tr><td><code>JIRA_API_TOKEN</code></td><td><span class="opt">Optional</span></td><td>atlassian.com/manage-profile/security/api-tokens</td></tr>
       <tr><td><code>JIRA_PROJECT_KEY</code></td><td><span class="opt">Optional</span></td><td>e.g. <code>OPS</code></td></tr>
+      <tr><td><code>JIRA_DRY_RUN</code></td><td><span class="opt">Optional</span></td><td><code>true</code> = log Jira calls without hitting API (dev/testing mode)</td><td>—</td></tr>
     </table>
   </div>
 
@@ -532,7 +534,7 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
       <!-- TRIAGE -->
       <rect x="340" y="100" width="220" height="52" rx="8" fill="#111927" stroke="#00d4ff" stroke-width="1.5" filter="url(#glow)"/>
       <text x="450" y="122" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">① Triage Agent</text>
-      <text x="450" y="140" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Vendor • Severity • Slack alert</text>
+      <text x="450" y="140" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Vendor • Severity → Jira • Slack</text>
 
       <!-- RAG CACHE -->
       <rect x="340" y="192" width="220" height="52" rx="8" fill="#111927" stroke="#7b5ea7" stroke-width="1.5"/>
@@ -571,7 +573,7 @@ uv run python backend/main.py --scenario aws_s3_degradation --model openai/gpt-4
       <!-- REMEDIATION -->
       <rect x="340" y="580" width="220" height="50" rx="8" fill="#111927" stroke="#ff6b35" stroke-width="1.5"/>
       <text x="450" y="601" text-anchor="middle" fill="#eaf2ff" font-family="Inter,sans-serif" font-size="11" font-weight="700">⑥ Remediation Agent</text>
-      <text x="450" y="619" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Containment plan • Slack notify</text>
+      <text x="450" y="619" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="9">Containment plan • Slack thread update</text>
 
       <!-- REPORTER -->
       <rect x="618" y="465" width="190" height="52" rx="8" fill="#111927" stroke="#00e676" stroke-width="1.5"/>
@@ -896,7 +898,7 @@ python daemon.py          # reads settings.cfg (copy settings.cfg.example first)
       <line x1="790" y1="140" x2="840" y2="92" stroke="#7b5ea7" stroke-width="1" opacity=".4"/>
       <rect x="842" y="72" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
       <text x="892" y="88" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">FastAPI routes</text>
-      <text x="892" y="100" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">14 endpoints</text>
+      <text x="892" y="100" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">24 endpoints</text>
 
       <line x1="800" y1="150" x2="842" y2="134" stroke="#7b5ea7" stroke-width="1" opacity=".4"/>
       <rect x="842" y="116" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
@@ -952,8 +954,8 @@ python daemon.py          # reads settings.cfg (copy settings.cfg.example first)
 
       <line x1="780" y1="578" x2="824" y2="610" stroke="#c09aff" stroke-width="1" opacity=".4"/>
       <rect x="826" y="594" width="100" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
-      <text x="876" y="610" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Agent Feed</text>
-      <text x="876" y="622" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Live SSE events</text>
+      <text x="876" y="610" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Jira/Slack Cards</text>
+      <text x="876" y="622" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Status on run page</text>
 
       <!-- ═══ BRANCH 5 — TOOLS (bottom-left) ═══ -->
       <line x1="440" y1="396" x2="310" y2="530" stroke="#ffd740" stroke-width="1.6" opacity=".6"/>
@@ -963,18 +965,18 @@ python daemon.py          # reads settings.cfg (copy settings.cfg.example first)
 
       <line x1="205" y1="556" x2="160" y2="520" stroke="#ffd740" stroke-width="1" opacity=".4"/>
       <rect x="60" y="502" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
-      <text x="109" y="518" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Slack Webhook</text>
-      <text x="109" y="530" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Incident alerts</text>
+      <text x="109" y="518" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Slack Bot</text>
+      <text x="109" y="530" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Block Kit approvals</text>
 
       <line x1="202" y1="566" x2="160" y2="560" stroke="#ffd740" stroke-width="1" opacity=".4"/>
       <rect x="60" y="544" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
-      <text x="109" y="560" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Vendor Status</text>
-      <text x="109" y="572" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Playwright tool</text>
+      <text x="109" y="560" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Jira Tool</text>
+      <text x="109" y="572" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Auto-ticketing</text>
 
       <line x1="208" y1="578" x2="165" y2="598" stroke="#ffd740" stroke-width="1" opacity=".4"/>
       <rect x="66" y="582" width="98" height="36" rx="6" fill="#0d1420" stroke="#1e2d42"/>
-      <text x="115" y="598" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Web Search</text>
-      <text x="115" y="610" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Tavily / DuckDuckGo</text>
+      <text x="115" y="598" text-anchor="middle" fill="#c8d8e8" font-family="Inter,sans-serif" font-size="9">Vendor Status</text>
+      <text x="115" y="610" text-anchor="middle" fill="#5a7090" font-family="Inter,sans-serif" font-size="8">Playwright + Web Search</text>
 
       <!-- ═══ BRANCH 6 — HITL (left) ═══ -->
       <line x1="420" y1="360" x2="270" y2="360" stroke="#ffd740" stroke-width="1.6" opacity=".6"/>
@@ -1097,6 +1099,8 @@ python daemon.py          # reads settings.cfg (copy settings.cfg.example first)
       <tr><td><code>agent_start</code> / <code>agent_end</code></td><td>Agent begins / finishes work</td></tr>
       <tr><td><code>tool_start</code> / <code>tool_end</code></td><td>Tool call begins / completes</td></tr>
       <tr><td><code>cost_update</code></td><td>After every LLM call — tokens + USD</td></tr>
+      <tr><td><code>jira_ticket</code></td><td>Jira ticket created after triage — payload: <code>{status, ticket_id, ticket_key, ticket_url}</code> (or <code>skipped</code> / <code>error</code>). Renders as a Jira card on the run page.</td></tr>
+      <tr><td><code>slack_message</code></td><td>Slack approval message posted — payload: <code>{status, channel_id, message_ts, thread_url}</code> (or <code>skipped</code> / <code>dry_run</code> / <code>error</code>). Renders as a Slack card on the run page.</td></tr>
       <tr><td><code>approval_context</code></td><td>Graph pauses for HITL — full investigation context</td></tr>
       <tr><td><code>report</code></td><td>Final Markdown postmortem ready</td></tr>
       <tr><td><code>done</code></td><td>Pipeline complete</td></tr>
@@ -1150,6 +1154,7 @@ docker run -p 8004:8004 \
       <tr><td><code>JIRA_API_TOKEN</code></td><td>—</td><td><span class="opt">No</span></td><td>Jira API token</td></tr>
       <tr><td><code>JIRA_PROJECT_KEY</code></td><td>—</td><td><span class="opt">No</span></td><td>Jira project key (e.g. <code>OPS</code>)</td></tr>
       <tr><td><code>JIRA_DRY_RUN</code></td><td><code>false</code></td><td><span class="opt">No</span></td><td><code>true</code> = log Jira calls without hitting API</td></tr>
+      <tr><td><code>API_BASE_URL</code></td><td><code>http://127.0.0.1:{port}</code></td><td><span class="opt">No</span></td><td>Internal URL used by monitors to call <code>/api/incident</code>. Override in Docker or multi-host deployments (e.g. <code>http://backend:8004</code>).</td></tr>
       <tr><td><code>ALLOW_CLIENT_API_KEYS</code></td><td><code>false</code></td><td><span class="opt">No</span></td><td><code>true</code> = dev/hackathon; <code>false</code> = production</td></tr>
       <tr><td><code>CHECKPOINT_DB_PATH</code></td><td><code>data/checkpoints.db</code></td><td><span class="opt">No</span></td><td>LangGraph checkpoint SQLite path</td></tr>
       <tr><td><code>RUNS_DB_PATH</code></td><td><code>data/runs.db</code></td><td><span class="opt">No</span></td><td>Run metadata SQLite path</td></tr>

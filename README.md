@@ -64,6 +64,7 @@ Before installing, make sure you have the following installed:
 | `JIRA_EMAIL` | Optional (with Jira) | Atlassian account email | Your Atlassian account |
 | `JIRA_API_TOKEN` | Optional (with Jira) | Jira API token | Atlassian account settings |
 | `JIRA_PROJECT_KEY` | Optional (with Jira) | Jira project key (e.g. `OPS`) | Your Jira project |
+| `API_BASE_URL` | Optional | Internal URL monitors use to trigger incidents. Set in Docker (e.g. `http://backend:8004`) | — |
 
 ---
 
@@ -148,6 +149,10 @@ ALLOW_CLIENT_API_KEYS=true           # true = hackathon/dev mode; false = produc
 # ─── Persistence (SQLite) ─────────────────────────────────────────────────────
 CHECKPOINT_DB_PATH=data/checkpoints.db   # LangGraph state checkpoints
 RUNS_DB_PATH=data/runs.db                # Run metadata and reports
+
+# ─── Monitors ─────────────────────────────────────────────────────────────────
+API_BASE_URL=http://127.0.0.1:8004       # Override in Docker/multi-host so monitors reach the API
+                                         # e.g. API_BASE_URL=http://backend:8004
 
 ```
 
@@ -320,6 +325,7 @@ Before going to production, verify these settings:
 - **Real-time Observability**: 3D topology graph and live agent activity feed via Server-Sent Events (SSE).
 - **Cost Tracking**: Per-agent token usage and USD cost reported live in the UI.
 - **Persistent Memory**: SQLite checkpoints allow paused runs to survive server restarts.
+- **Run-Page Status Cards**: After triage, the run page shows a **Jira card** (ticket key + link) and a **Slack card** (posted / dry run / skipped / error) so you can see integration status at a glance without leaving the UI.
 - **Secure API Key Management**: Keys are stored in `localStorage` only. The API Keys tab shows blank fields (never pre-fills) with a `✓ Saved` badge when a key exists. A **Save Keys** button persists changes without requiring a launch. **Clear Cache** wipes all stored keys and settings.
 
 ---
